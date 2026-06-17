@@ -1,0 +1,221 @@
+.camera-page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #15110e;
+}
+
+.camera-page__camera {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.camera-page__top {
+  position: absolute;
+  top: 16px;
+  left: 14px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+}
+
+.camera-page__status,
+.camera-page__badge {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 248, 240, 0.72);
+  color: #5f3f2c;
+  font-size: 13px;
+}
+
+.camera-page__status {
+  min-width: 148px;
+}
+
+.camera-page__hint {
+  position: absolute;
+  z-index: 4;
+  top: 28%;
+  left: 50%;
+  width: 280px;
+  transform: translateX(-50%);
+  color: rgba(255, 248, 240, 0.92);
+  font-size: 16px;
+  text-align: center;
+}
+
+.camera-page__overlay {
+  position: absolute;
+  z-index: 30;
+  top: 18%;
+  left: 50%;
+  width: 300px;
+  height: 360px;
+  margin-left: -150px;
+  transform-origin: 50% 42%;
+  pointer-events: none;
+}
+
+.camera-page__debug-label {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(138, 90, 59, 0.86);
+  color: #fff8f0;
+  font-size: 12px;
+  transform: translateX(-50%);
+}
+
+.camera-page__face-line {
+  position: absolute;
+  border-color: rgba(138, 90, 59, 0.52);
+}
+
+.camera-page__face-line--vertical {
+  left: 50%;
+  top: 34px;
+  height: 292px;
+  border-left: 2px dashed rgba(138, 90, 59, 0.52);
+}
+
+.camera-page__face-line--horizontal {
+  left: 36px;
+  top: 126px;
+  width: 228px;
+  border-top: 2px dashed rgba(138, 90, 59, 0.52);
+}
+
+.camera-page__brow {
+  position: absolute;
+  top: 104px;
+  width: 86px;
+  height: 28px;
+  border-top: 4px dashed #8a5a3b;
+  border-bottom: 3px dashed rgba(138, 90, 59, 0.82);
+  border-radius: 60% 70% 46% 46%;
+}
+
+.camera-page__brow--left {
+  left: 48px;
+  transform: rotate(-5deg);
+}
+
+.camera-page__brow--right {
+  right: 48px;
+  transform: rotate(5deg);
+}
+
+.camera-page__dot {
+  position: absolute;
+  z-index: 2;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8a5a3b;
+}
+
+.camera-page__dot--start {
+  left: -2px;
+  top: 9px;
+}
+
+.camera-page__dot--peak {
+  left: 42px;
+  top: -4px;
+}
+
+.camera-page__dot--end {
+  right: -2px;
+  top: 10px;
+}
+
+.camera-page__panel {
+  position: absolute;
+  z-index: 6;
+  left: 14px;
+  right: 14px;
+  bottom: 18px;
+  padding: 16px;
+  border-radius: 24px;
+  background: rgba(255, 248, 240, 0.9);
+  box-shadow: 0 16px 50px rgba(60, 42, 31, 0.18);
+}
+
+.camera-page__sliders {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  align-items: center;
+  gap: 8px;
+  color: #5f3f2c;
+  font-size: 13px;
+}
+
+.camera-page__face-status {
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(138, 90, 59, 0.08);
+}
+
+.camera-page__face-status-title {
+  display: block;
+  color: #5f3f2c;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.camera-page__face-status-title--success {
+  color: #2f7f48;
+}
+
+.camera-page__face-status-title--failed {
+  color: #b54735;
+}
+
+.camera-page__face-status-title--detecting {
+  color: #8a5a3b;
+}
+
+.camera-page__face-status-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  color: #6b5a4e;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.camera-page__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.camera-page__primary,
+.camera-page__secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.camera-page__primary {
+  flex: 1;
+  background: #8a5a3b;
+  color: #fff;
+}
+
+.camera-page__secondary {
+  min-width: 104px;
+  background: rgba(138, 90, 59, 0.12);
+  color: #704b34;
+}

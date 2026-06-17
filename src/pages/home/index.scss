@@ -1,0 +1,104 @@
+.home-page {
+  min-height: 100vh;
+  padding: 32px 24px 40px;
+  background:
+    radial-gradient(circle at 24% 18%, rgba(230, 207, 168, 0.42), transparent 34%),
+    linear-gradient(180deg, #fff8f0 0%, #f7eadc 100%);
+}
+
+.home-page__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.home-page__brand {
+  color: #2f2722;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.home-page__profile {
+  color: #8a5a3b;
+  font-size: 14px;
+}
+
+.home-page__hero {
+  display: flex;
+  justify-content: center;
+  margin: 56px 0 36px;
+}
+
+.home-page__face {
+  position: relative;
+  width: 220px;
+  height: 260px;
+  border: 2px solid rgba(138, 90, 59, 0.28);
+  border-radius: 48% 48% 46% 46%;
+}
+
+.home-page__brow {
+  position: absolute;
+  top: 86px;
+  width: 58px;
+  height: 16px;
+  border-top: 3px dashed #8a5a3b;
+}
+
+.home-page__brow--left {
+  left: 42px;
+  transform: rotate(-6deg);
+}
+
+.home-page__brow--right {
+  right: 42px;
+  transform: rotate(6deg);
+}
+
+.home-page__center-line {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  bottom: 34px;
+  border-left: 1px dashed rgba(138, 90, 59, 0.32);
+}
+
+.home-page__title {
+  display: block;
+  color: #2f2722;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.home-page__subtitle {
+  display: block;
+  margin-top: 12px;
+  color: #7c6b60;
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.home-page__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 34px 0;
+  padding: 20px;
+  border: 1px solid rgba(138, 90, 59, 0.12);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #6c5d54;
+  font-size: 14px;
+}
+
+.home-page__cta {
+  height: 52px;
+  border-radius: 26px;
+  background: #8a5a3b;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+}

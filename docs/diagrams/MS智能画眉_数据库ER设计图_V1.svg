@@ -1,0 +1,253 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1180" viewBox="0 0 1800 1180">
+  <defs>
+    <style>
+      .title { font: 700 34px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #26324a; }
+      .subtitle { font: 500 17px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #6f7890; }
+      .section-title { font: 700 20px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #31405f; }
+      .table-title { font: 700 17px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #26324a; }
+      .field { font: 13px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #344057; }
+      .small { font: 12px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #66728a; }
+      .tiny { font: 11px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #717d94; }
+      .outer { fill: #ffffff; stroke: #8ca0d2; stroke-width: 2; rx: 8; }
+      .group { fill: #fbfcff; stroke: #c5d1ec; stroke-width: 1.5; rx: 8; }
+      .blue { fill: #f2f7ff; stroke: #b9cbed; }
+      .green { fill: #f2fbf4; stroke: #b9ddc1; }
+      .orange { fill: #fff8ef; stroke: #eccb9c; }
+      .purple { fill: #f8f4ff; stroke: #d2c2ee; }
+      .red { fill: #fff5f3; stroke: #efb8b0; }
+      .cyan { fill: #f2fbfc; stroke: #acdbe0; }
+      .gray { fill: #f7f8fb; stroke: #cbd2df; }
+      .table { stroke-width: 1.5; rx: 7; }
+      .header-blue { fill: #dce9ff; }
+      .header-green { fill: #def3e3; }
+      .header-orange { fill: #ffead0; }
+      .header-purple { fill: #eadfff; }
+      .header-red { fill: #ffe1dc; }
+      .header-cyan { fill: #dff5f7; }
+      .rel { stroke: #5f6b82; stroke-width: 1.8; fill: none; }
+      .rel-dash { stroke: #8b95a8; stroke-width: 1.6; fill: none; stroke-dasharray: 6 6; }
+      .line { stroke: #c9d1df; stroke-width: 1; }
+      .pk { font: 700 12px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #1f4f92; }
+      .fk { font: 700 12px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #8a5a3b; }
+      .tag { font: 700 11px "PingFang SC", "Microsoft YaHei", Arial, sans-serif; fill: #ffffff; }
+    </style>
+  </defs>
+
+  <rect x="28" y="28" width="1744" height="1124" class="outer"/>
+  <text x="900" y="72" text-anchor="middle" class="title">MS 智能画眉微信小程序 · 数据库表设计图（ER 图）</text>
+  <text x="900" y="104" text-anchor="middle" class="subtitle">微信云数据库 · V1 用户沉淀与偏好 · V2 收费权益预留 · V3 多端身份预留</text>
+
+  <!-- Legend -->
+  <rect x="1030" y="45" width="690" height="46" rx="6" fill="#fbfcff" stroke="#d4dbea"/>
+  <text x="1050" y="74" class="small">图例：</text>
+  <rect x="1094" y="58" width="26" height="18" rx="4" fill="#3f75c7"/>
+  <text x="1107" y="71" text-anchor="middle" class="tag">PK</text>
+  <text x="1128" y="72" class="tiny">主键</text>
+  <rect x="1178" y="58" width="26" height="18" rx="4" fill="#b37a4c"/>
+  <text x="1191" y="71" text-anchor="middle" class="tag">FK</text>
+  <text x="1212" y="72" class="tiny">外键/关联字段</text>
+  <line x1="1325" y1="67" x2="1378" y2="67" class="rel"/>
+  <text x="1390" y="72" class="tiny">V1 关系</text>
+  <line x1="1470" y1="67" x2="1523" y2="67" class="rel-dash"/>
+  <text x="1535" y="72" class="tiny">后续预留</text>
+  <text x="1620" y="72" class="tiny">所有表建议含 createdAt、updatedAt</text>
+
+  <!-- Group 1 Users -->
+  <rect x="60" y="140" width="520" height="355" class="group blue"/>
+  <text x="82" y="172" class="section-title">1. 用户与登录（V1 必需）</text>
+
+  <g id="users">
+    <rect x="95" y="205" width="205" height="245" class="table blue"/>
+    <rect x="95" y="205" width="205" height="40" class="header-blue"/>
+    <text x="198" y="231" text-anchor="middle" class="table-title">users</text>
+    <line x1="95" y1="245" x2="300" y2="245" class="line"/>
+    <text x="112" y="272" class="pk">PK</text><text x="145" y="272" class="field">_id</text>
+    <text x="112" y="296" class="pk">UK</text><text x="145" y="296" class="field">userId</text>
+    <text x="112" y="320" class="pk">UK</text><text x="145" y="320" class="field">openid</text>
+    <text x="145" y="344" class="field">nickname</text>
+    <text x="145" y="368" class="field">avatarUrl</text>
+    <text x="145" y="392" class="field">memberStatus</text>
+    <text x="145" y="416" class="field">memberLevel</text>
+    <text x="145" y="440" class="field">firstLoginAt / lastLoginAt</text>
+  </g>
+
+  <g id="preferences">
+    <rect x="345" y="235" width="195" height="185" class="table blue"/>
+    <rect x="345" y="235" width="195" height="40" class="header-blue"/>
+    <text x="443" y="261" text-anchor="middle" class="table-title">user_preferences</text>
+    <line x1="345" y1="275" x2="540" y2="275" class="line"/>
+    <text x="362" y="302" class="pk">PK</text><text x="395" y="302" class="field">_id</text>
+    <text x="362" y="326" class="fk">FK</text><text x="395" y="326" class="field">userId</text>
+    <text x="395" y="350" class="field">lastBrowTemplate</text>
+    <text x="395" y="374" class="field">overlayOpacity</text>
+    <text x="395" y="398" class="field">createdAt / updatedAt</text>
+  </g>
+
+  <!-- Group 2 Product local -->
+  <rect x="620" y="140" width="520" height="355" class="group green"/>
+  <text x="642" y="172" class="section-title">2. 画眉业务配置（V1 本地配置）</text>
+
+  <rect x="665" y="215" width="215" height="205" class="table green"/>
+  <rect x="665" y="215" width="215" height="40" class="header-green"/>
+  <text x="773" y="241" text-anchor="middle" class="table-title">brow_templates</text>
+  <line x1="665" y1="255" x2="880" y2="255" class="line"/>
+  <text x="682" y="282" class="pk">PK</text><text x="715" y="282" class="field">templateId</text>
+  <text x="715" y="306" class="field">name</text>
+  <text x="715" y="330" class="field">previewIcon</text>
+  <text x="715" y="354" class="field">pathParams</text>
+  <text x="715" y="378" class="field">defaultAdjust</text>
+  <text x="715" y="402" class="field">sortOrder</text>
+
+  <rect x="925" y="215" width="175" height="205" class="table green"/>
+  <rect x="925" y="215" width="175" height="40" class="header-green"/>
+  <text x="1013" y="241" text-anchor="middle" class="table-title">theme_tokens</text>
+  <line x1="925" y1="255" x2="1100" y2="255" class="line"/>
+  <text x="942" y="282" class="pk">PK</text><text x="975" y="282" class="field">tokenKey</text>
+  <text x="975" y="306" class="field">colorValue</text>
+  <text x="975" y="330" class="field">fontSize</text>
+  <text x="975" y="354" class="field">radius</text>
+  <text x="975" y="378" class="field">shadow</text>
+  <text x="975" y="402" class="field">local only</text>
+
+  <text x="665" y="458" class="small">说明：V1 不建云端模板表，模板和主题作为前端静态配置。V2 如做模板商城再迁移为云端配置。</text>
+
+  <!-- Group 3 Future payment -->
+  <rect x="1180" y="140" width="560" height="355" class="group orange"/>
+  <text x="1202" y="172" class="section-title">3. 会员与付费（V2 预留）</text>
+
+  <rect x="1225" y="215" width="205" height="220" class="table orange"/>
+  <rect x="1225" y="215" width="205" height="40" class="header-orange"/>
+  <text x="1328" y="241" text-anchor="middle" class="table-title">orders</text>
+  <line x1="1225" y1="255" x2="1430" y2="255" class="line"/>
+  <text x="1242" y="282" class="pk">PK</text><text x="1275" y="282" class="field">_id</text>
+  <text x="1242" y="306" class="fk">FK</text><text x="1275" y="306" class="field">userId</text>
+  <text x="1275" y="330" class="field">orderNo</text>
+  <text x="1275" y="354" class="field">productType</text>
+  <text x="1275" y="378" class="field">productId</text>
+  <text x="1275" y="402" class="field">amount / currency</text>
+  <text x="1275" y="426" class="field">status / paidAt</text>
+
+  <rect x="1480" y="215" width="215" height="220" class="table orange"/>
+  <rect x="1480" y="215" width="215" height="40" class="header-orange"/>
+  <text x="1588" y="241" text-anchor="middle" class="table-title">entitlements</text>
+  <line x1="1480" y1="255" x2="1695" y2="255" class="line"/>
+  <text x="1497" y="282" class="pk">PK</text><text x="1530" y="282" class="field">_id</text>
+  <text x="1497" y="306" class="fk">FK</text><text x="1530" y="306" class="field">userId</text>
+  <text x="1530" y="330" class="field">entitlementKey</text>
+  <text x="1530" y="354" class="field">status</text>
+  <text x="1530" y="378" class="field">source</text>
+  <text x="1530" y="402" class="field">startedAt</text>
+  <text x="1530" y="426" class="field">expiredAt</text>
+
+  <!-- Group 4 Multi identities -->
+  <rect x="60" y="535" width="520" height="295" class="group purple"/>
+  <text x="82" y="567" class="section-title">4. 多端账号体系（V3 预留）</text>
+
+  <rect x="110" y="610" width="230" height="175" class="table purple"/>
+  <rect x="110" y="610" width="230" height="40" class="header-purple"/>
+  <text x="225" y="636" text-anchor="middle" class="table-title">user_identities</text>
+  <line x1="110" y1="650" x2="340" y2="650" class="line"/>
+  <text x="127" y="677" class="pk">PK</text><text x="160" y="677" class="field">_id</text>
+  <text x="127" y="701" class="fk">FK</text><text x="160" y="701" class="field">userId</text>
+  <text x="160" y="725" class="field">provider</text>
+  <text x="160" y="749" class="field">providerUserId</text>
+  <text x="160" y="773" class="field">createdAt</text>
+
+  <rect x="380" y="610" width="150" height="175" class="table purple"/>
+  <rect x="380" y="610" width="150" height="40" class="header-purple"/>
+  <text x="455" y="636" text-anchor="middle" class="table-title">providers</text>
+  <line x1="380" y1="650" x2="530" y2="650" class="line"/>
+  <text x="397" y="677" class="field">wechat_mp</text>
+  <text x="397" y="701" class="field">phone</text>
+  <text x="397" y="725" class="field">apple</text>
+  <text x="397" y="749" class="field">wechat_app</text>
+  <text x="397" y="773" class="field">future</text>
+
+  <!-- Group 5 Privacy boundary -->
+  <rect x="620" y="535" width="520" height="295" class="group red"/>
+  <text x="642" y="567" class="section-title">5. 隐私与数据边界（V1 明确不存）</text>
+
+  <rect x="660" y="610" width="205" height="160" class="table red"/>
+  <rect x="660" y="610" width="205" height="40" class="header-red"/>
+  <text x="763" y="636" text-anchor="middle" class="table-title">not_stored</text>
+  <line x1="660" y1="650" x2="865" y2="650" class="line"/>
+  <text x="685" y="678" class="field">用户相机照片</text>
+  <text x="685" y="704" class="field">保存到相册的净图</text>
+  <text x="685" y="730" class="field">人脸关键点数据</text>
+  <text x="685" y="756" class="field">画眉过程图</text>
+
+  <rect x="900" y="610" width="205" height="160" class="table red"/>
+  <rect x="900" y="610" width="205" height="40" class="header-red"/>
+  <text x="1003" y="636" text-anchor="middle" class="table-title">not_collected</text>
+  <line x1="900" y1="650" x2="1105" y2="650" class="line"/>
+  <text x="925" y="678" class="field">手机号</text>
+  <text x="925" y="704" class="field">身份证/真实姓名</text>
+  <text x="925" y="730" class="field">地理位置</text>
+  <text x="925" y="756" class="field">通讯录</text>
+
+  <!-- Group 6 Analytics future -->
+  <rect x="1180" y="535" width="560" height="295" class="group cyan"/>
+  <text x="1202" y="567" class="section-title">6. 埋点与运营（后续预留，V1 不接）</text>
+
+  <rect x="1230" y="610" width="230" height="175" class="table cyan"/>
+  <rect x="1230" y="610" width="230" height="40" class="header-cyan"/>
+  <text x="1345" y="636" text-anchor="middle" class="table-title">analytics_events</text>
+  <line x1="1230" y1="650" x2="1460" y2="650" class="line"/>
+  <text x="1247" y="677" class="pk">PK</text><text x="1280" y="677" class="field">_id</text>
+  <text x="1247" y="701" class="fk">FK</text><text x="1280" y="701" class="field">userId</text>
+  <text x="1280" y="725" class="field">eventName</text>
+  <text x="1280" y="749" class="field">eventData</text>
+  <text x="1280" y="773" class="field">createdAt</text>
+
+  <rect x="1500" y="610" width="190" height="175" class="table cyan"/>
+  <rect x="1500" y="610" width="190" height="40" class="header-cyan"/>
+  <text x="1595" y="636" text-anchor="middle" class="table-title">future_events</text>
+  <line x1="1500" y1="650" x2="1690" y2="650" class="line"/>
+  <text x="1522" y="677" class="field">定标成功率</text>
+  <text x="1522" y="701" class="field">模板偏好</text>
+  <text x="1522" y="725" class="field">保存转化</text>
+  <text x="1522" y="749" class="field">付费点击</text>
+  <text x="1522" y="773" class="field">留存分析</text>
+
+  <!-- Relationships -->
+  <line x1="300" y1="322" x2="345" y2="322" class="rel"/>
+  <text x="315" y="312" class="tiny">1</text>
+  <text x="331" y="312" class="tiny">1</text>
+
+  <path d="M198 450 V520 H1328 V215" class="rel-dash"/>
+  <text x="210" y="510" class="tiny">1</text>
+  <text x="1310" y="204" class="tiny">N</text>
+
+  <path d="M198 450 V505 H1588 V215" class="rel-dash"/>
+  <text x="1570" y="204" class="tiny">N</text>
+
+  <path d="M198 450 V580 H225 V610" class="rel-dash"/>
+  <text x="210" y="575" class="tiny">N</text>
+
+  <path d="M300 392 C470 455, 560 455, 665 392" class="rel-dash"/>
+  <text x="463" y="435" class="tiny">lastBrowTemplate 引用 templateId</text>
+
+  <path d="M300 392 C650 900, 1180 900, 1345 785" class="rel-dash"/>
+  <text x="700" y="888" class="tiny">后续埋点按 userId 关联</text>
+
+  <!-- Notes -->
+  <rect x="60" y="870" width="1680" height="245" class="group gray"/>
+  <text x="82" y="902" class="section-title">7. 设计说明与阶段边界</text>
+
+  <text x="95" y="940" class="table-title">V1 立即创建</text>
+  <circle cx="110" cy="970" r="5" fill="#3f75c7"/><text x="128" y="975" class="field">users：用户基础资料、openid、自定义 userId、会员预留字段。</text>
+  <circle cx="110" cy="1000" r="5" fill="#3f75c7"/><text x="128" y="1005" class="field">user_preferences：轻量偏好，可用于上次眉形和辅助线透明度。</text>
+  <circle cx="110" cy="1030" r="5" fill="#3f75c7"/><text x="128" y="1035" class="field">V1 不做订单、不做权益、不做照片和人脸数据存储。</text>
+
+  <text x="680" y="940" class="table-title">V2 收费阶段再创建</text>
+  <circle cx="695" cy="970" r="5" fill="#d19b54"/><text x="713" y="975" class="field">orders：微信支付订单、会员/模板包购买记录。</text>
+  <circle cx="695" cy="1000" r="5" fill="#d19b54"/><text x="713" y="1005" class="field">entitlements：用户会员和高级功能权益。</text>
+  <circle cx="695" cy="1030" r="5" fill="#d19b54"/><text x="713" y="1035" class="field">brow_templates_remote：模板商城或远程配置。</text>
+
+  <text x="1230" y="940" class="table-title">V3 多端阶段再扩展</text>
+  <circle cx="1245" cy="970" r="5" fill="#9b7ad4"/><text x="1263" y="975" class="field">user_identities：绑定微信小程序、App、手机号、Apple 等身份。</text>
+  <circle cx="1245" cy="1000" r="5" fill="#9b7ad4"/><text x="1263" y="1005" class="field">自建后端/关系型数据库可在规模化后迁移。</text>
+  <circle cx="1245" cy="1030" r="5" fill="#9b7ad4"/><text x="1263" y="1035" class="field">因 V1 已有 userId，后续迁移不会被 openid 锁死。</text>
+
+  <text x="95" y="1086" class="small">备注：微信云数据库没有强制外键，上图 FK 表示业务关联字段；V1 所有敏感图像数据仅在端侧临时使用，不进入云数据库。</text>
+</svg>
