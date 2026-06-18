@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { View, Text, Button, Camera, Slider } from '@tarojs/components'
+import { View, Text, Button, Camera, Slider, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { browTemplates } from '../../config/browTemplates'
+import type { BrowTemplateId } from '@/types/brow'
 import type { OverlayAdjustments } from '@/types/brow'
+import browNormal from '../../assets/brow-normal.webp'
+import browStandard from '../../assets/brow-standard.webp'
+import browFlat from '../../assets/brow-flat.webp'
+import browBend from '../../assets/brow-bend.webp'
 import './index.scss'
 
 const defaultAdjustments: OverlayAdjustments = {
@@ -10,6 +16,13 @@ const defaultAdjustments: OverlayAdjustments = {
   scale: 1,
   rotation: 0,
   opacity: 0.8,
+}
+
+const browPreviewMap: Record<BrowTemplateId, string> = {
+  natural: browNormal,
+  standard: browStandard,
+  straight: browFlat,
+  arched: browBend,
 }
 
 interface CameraFrameSnapshot {
@@ -108,7 +121,10 @@ function formatNumber(value: unknown): string {
 
 export default function CameraSpikePage() {
   const [calibrated, setCalibrated] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [infoOpen, setInfoOpen] = useState(false)
   const [adjustments, setAdjustments] = useState(defaultAdjustments)
+  const [activeTemplate, setActiveTemplate] = useState<BrowTemplateId>('natural')
   const latestFrameRef = useRef<CameraFrameSnapshot | null>(null)
   const hasFrameRef = useRef(false)
   const [faceSummary, setFaceSummary] = useState<FaceDetectSummary>({
@@ -191,6 +207,8 @@ export default function CameraSpikePage() {
     }
 
     setCalibrated(true)
+    setSettingsOpen(false)
+    setInfoOpen(false)
     setFaceSummary({
       status: 'detecting',
       message: '正在进行单帧人脸识别...',
@@ -217,6 +235,11 @@ export default function CameraSpikePage() {
       const angle = face.angleArray?.[0]
       const rectWidth = rect?.width ?? rect?.weight
 
+      Taro.showToast({
+        title: '识别成功，\n已返回人脸关键点',
+        icon: 'none',
+        duration: 1800,
+      })
       setFaceSummary({
         status: 'success',
         message: '识别成功，已返回人脸关键点',
@@ -241,6 +264,7 @@ export default function CameraSpikePage() {
     opacity: adjustments.opacity,
     transform: `translate(${adjustments.offsetX * 2}rpx, ${adjustments.offsetY * 2}rpx) scale(${adjustments.scale}) rotate(${adjustments.rotation}deg)`,
   }
+  const activeTemplateInfo = browTemplates.find((template) => template.id === activeTemplate) ?? browTemplates[0]
 
   return (
     <View className='camera-page'>
@@ -259,55 +283,104 @@ export default function CameraSpikePage() {
       />
 
       <View className='camera-page__top'>
+        {calibrated ? (
+          <View className='camera-page__tools'>
+            <Button className='camera-page__settings-entry' onClick={() => setSettingsOpen(true)}>
+              微调
+            </Button>
+            <Button className='camera-page__info-entry' onClick={() => setInfoOpen((current) => !current)}>
+              i
+            </Button>
+          </View>
+        ) : (
+          <View className='camera-page__top-placeholder' />
+        )}
         <View className='camera-page__status'>
-          <Text>前置摄像头 · 单帧识别 Spike</Text>
+          <Text className='camera-page__status-title'>{calibrated ? `${activeTemplateInfo.name}辅助中` : '前置摄像头已开启'}</Text>
+          {calibrated ? <Text className='camera-page__status-subtitle'>对齐辅助线画眉</Text> : null}
         </View>
       </View>
 
+      {calibrated && infoOpen ? (
+        <View className='camera-page__info-popover'>
+          <Text className='camera-page__info-line'>{faceSummary.message}</Text>
+          <Text className='camera-page__info-line'>关键点：{faceSummary.pointCount ?? '无'}</Text>
+          <Text className='camera-page__info-line'>人脸数：{faceSummary.faceCount ?? '无'}</Text>
+          <Text className='camera-page__info-line'>中心：{faceSummary.center ?? '无'}</Text>
+          <Text className='camera-page__info-line'>人脸框：{faceSummary.rect ?? '无'}</Text>
+        </View>
+      ) : null}
+
       {calibrated ? (
         <View className='camera-page__overlay' style={overlayStyle}>
-          <View className='camera-page__debug-label'>View 辅助线测试层</View>
+          <View className='camera-page__calibration-badge'>眉形轮廓线</View>
           <View className='camera-page__face-line camera-page__face-line--vertical' />
           <View className='camera-page__face-line camera-page__face-line--horizontal' />
-          <View className='camera-page__brow camera-page__brow--left'>
+          <View className={`camera-page__brow camera-page__brow--left camera-page__brow--${activeTemplate}`}>
             <View className='camera-page__dot camera-page__dot--start' />
             <View className='camera-page__dot camera-page__dot--peak' />
             <View className='camera-page__dot camera-page__dot--end' />
           </View>
-          <View className='camera-page__brow camera-page__brow--right'>
+          <View className={`camera-page__brow camera-page__brow--right camera-page__brow--${activeTemplate}`}>
             <View className='camera-page__dot camera-page__dot--start' />
             <View className='camera-page__dot camera-page__dot--peak' />
             <View className='camera-page__dot camera-page__dot--end' />
           </View>
         </View>
       ) : (
-        <Text className='camera-page__hint'>请正脸面对镜头，保持光线充足</Text>
+        <View className='camera-page__hint'>
+          <Text className='camera-page__hint-title'>请正脸面对镜头</Text>
+          <Text className='camera-page__hint-desc'>保持光线充足，点击开始定标后生成眉形辅助线。</Text>
+        </View>
       )}
 
-      <View className='camera-page__panel'>
-        <View className='camera-page__face-status'>
-          <Text className={`camera-page__face-status-title camera-page__face-status-title--${faceSummary.status}`}>
-            {faceSummary.message}
-          </Text>
-          {faceSummary.status === 'success' ? (
-            <View className='camera-page__face-status-detail'>
-              <Text>关键点：{faceSummary.pointCount}</Text>
-              <Text>人脸数：{faceSummary.faceCount}</Text>
-              <Text>中心：{faceSummary.center}</Text>
-              <Text>人脸框：{faceSummary.rect}</Text>
-              <Text>置信度：{faceSummary.confidence}</Text>
-              <Text>角度：{faceSummary.angle}</Text>
-              <Text>原始字段：{faceSummary.rawKeys}</Text>
-            </View>
-          ) : null}
-          {faceSummary.status === 'failed' && faceSummary.rawKeys ? (
-            <View className='camera-page__face-status-detail'>
-              <Text>人脸数：{faceSummary.faceCount}</Text>
-              <Text>原始字段：{faceSummary.rawKeys}</Text>
-            </View>
-          ) : null}
+      {!calibrated ? (
+        <View className='camera-page__panel'>
+          <View className='camera-page__face-status'>
+            <Text className={`camera-page__face-status-title camera-page__face-status-title--${faceSummary.status}`}>
+              {faceSummary.message}
+            </Text>
+          </View>
+          <Text className='camera-page__privacy'>人脸关键点仅用于本次本地定标，不上传人脸数据。</Text>
+          <Button className='camera-page__primary' onClick={runCalibrationSpike}>
+            开始定标
+          </Button>
         </View>
-        {calibrated ? (
+      ) : null}
+
+      {calibrated ? (
+        <View className='camera-page__compact-panel'>
+          <View className='camera-page__template-dock'>
+            {browTemplates.map((template) => (
+              <Button
+                className={`camera-page__template-dock-item ${template.id === activeTemplate ? 'camera-page__template-dock-item--active' : ''}`}
+                key={template.id}
+                onClick={() => setActiveTemplate(template.id)}
+              >
+                <Image className='camera-page__template-dock-image' mode='aspectFit' src={browPreviewMap[template.id]} />
+                <Text className={`camera-page__template-dock-name ${template.id === activeTemplate ? 'camera-page__template-dock-name--active' : ''}`}>{template.name}</Text>
+              </Button>
+            ))}
+          </View>
+          <View className='camera-page__compact-actions'>
+            <Button className='camera-page__secondary camera-page__compact-button' onClick={runCalibrationSpike}>
+              重新定标
+            </Button>
+            <Button className='camera-page__primary camera-page__compact-button' onClick={saveCleanPhoto}>
+              完成保存
+            </Button>
+          </View>
+        </View>
+      ) : null}
+
+      {calibrated && settingsOpen ? (
+        <View className='camera-page__panel camera-page__panel--settings'>
+          <View className='camera-page__panel-head'>
+            <Text className='camera-page__panel-title'>微调</Text>
+            <Button className='camera-page__collapse' onClick={() => setSettingsOpen(false)}>
+              收起面板
+            </Button>
+          </View>
           <>
             <View className='camera-page__sliders'>
               <Text>上下</Text>
@@ -321,21 +394,9 @@ export default function CameraSpikePage() {
               <Text>透明度</Text>
               <Slider min={20} max={100} value={adjustments.opacity * 100} onChanging={(event) => updateAdjustment('opacity', event.detail.value / 100)} />
             </View>
-            <View className='camera-page__actions'>
-              <Button className='camera-page__secondary' onClick={runCalibrationSpike}>
-                重新定标
-              </Button>
-              <Button className='camera-page__primary' onClick={saveCleanPhoto}>
-                完成并保存
-              </Button>
-            </View>
           </>
-        ) : (
-          <Button className='camera-page__primary' onClick={runCalibrationSpike}>
-            开始定标
-          </Button>
-        )}
-      </View>
+        </View>
+      ) : null}
     </View>
   )
 }

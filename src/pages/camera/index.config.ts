@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: '技术 Spike',
+  navigationBarTitleText: '相机辅助',
 })

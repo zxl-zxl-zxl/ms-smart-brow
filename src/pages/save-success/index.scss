@@ -1,37 +1,56 @@
 .save-success-page {
-  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 28px;
-  background: linear-gradient(180deg, #fff8f0 0%, #f7eadc 100%);
+  padding: 28px 24px;
 }
 
 .save-success-page__card {
   width: 100%;
-  padding: 36px 24px;
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.78);
+  padding: 38px 24px 28px;
+  border-radius: 30px;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(95, 63, 44, 0.12);
+}
+
+.save-success-page__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 20px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(123, 85, 55, 0.12), rgba(217, 196, 164, 0.86));
+}
+
+.save-success-page__check {
+  width: 34px;
+  height: 18px;
+  border-left: 5px solid #7b5537;
+  border-bottom: 5px solid #7b5537;
+  transform: rotate(-45deg) translate(2px, -3px);
 }
 
 .save-success-page__title {
   display: block;
-  color: #2f2722;
+  color: #2d1a0e;
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .save-success-page__desc {
   display: block;
-  margin: 12px 0 32px;
-  color: #7c6b60;
-  font-size: 15px;
+  margin: 12px 0 30px;
+  color: #7b6455;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .save-success-page__primary,
 .save-success-page__secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 50px;
   border-radius: 25px;
   font-size: 16px;
@@ -39,11 +58,12 @@
 }
 
 .save-success-page__primary {
-  background: #8a5a3b;
-  color: #fff;
+  background: linear-gradient(135deg, #7b5537 0%, #5a3820 100%);
+  color: #fbf7f1;
+  box-shadow: 0 12px 28px rgba(92, 56, 32, 0.22);
 }
 
 .save-success-page__secondary {
   margin-top: 12px;
-  color: #8a5a3b;
+  color: #7b5537;
 }
