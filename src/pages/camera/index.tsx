@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { View, Text, Button, Camera, Slider, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { browTemplates } from '../../config/browTemplates'
-import type { BrowTemplateId } from '@/types/brow'
-import type { OverlayAdjustments } from '@/types/brow'
+import type { BrowTemplateId } from '../../types/brow'
+import type { OverlayAdjustments } from '../../types/brow'
+import type { CameraFrameSnapshot, FaceAnalysisResult } from '../../types/face'
+import type { BrowGuide, OverlayBox, OverlayLandmarkPoint, OverlayLine, OverlayViewport } from '../../types/overlay'
+import { analyzeFaceFrame } from '../../modules/faceAnalyzer'
+import { generateOverlayData } from '../../modules/browEngine'
+import { recommendBrowTemplate, type BrowRecommendation } from '../../modules/recommendation'
 import browNormal from '../../assets/brow-normal.webp'
 import browStandard from '../../assets/brow-standard.webp'
 import browFlat from '../../assets/brow-flat.webp'
@@ -25,10 +31,9 @@ const browPreviewMap: Record<BrowTemplateId, string> = {
   arched: browBend,
 }
 
-interface CameraFrameSnapshot {
-  data: ArrayBuffer
-  width: number
-  height: number
+const defaultOverlayViewport: OverlayViewport = {
+  width: 375,
+  height: 667,
 }
 
 interface FaceDetectSummary {
@@ -43,16 +48,6 @@ interface FaceDetectSummary {
   angle?: string
 }
 
-type FaceDetectFace = Partial<Taro.faceDetect.face>
-
-type FaceDetectRawResult = Taro.faceDetect.SuccessCallbackOption & {
-  faceInfo?: FaceDetectFace | FaceDetectFace[]
-}
-
-type FaceDetectRect = Partial<Taro.faceDetect.detectRect> & {
-  width?: number
-}
-
 function takeCameraPhoto(): Promise<Taro.CameraContext.TakePhotoSuccessCallbackResult> {
   const cameraContext = Taro.createCameraContext()
 
@@ -65,58 +60,61 @@ function takeCameraPhoto(): Promise<Taro.CameraContext.TakePhotoSuccessCallbackR
   })
 }
 
-function detectFaceFromFrame(frame: CameraFrameSnapshot): Promise<FaceDetectRawResult> {
-  return new Promise((resolve, reject) => {
-    Taro.faceDetect({
-      frameBuffer: frame.data,
-      width: frame.width,
-      height: frame.height,
-      enablePoint: true,
-      enableConf: true,
-      enableAngle: true,
-      enableMultiFace: true,
-      success: resolve,
-      fail: reject,
-    })
-  })
-}
-
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
 
-function normalizeFaceDetectResult(result: FaceDetectRawResult): {
-  face?: FaceDetectFace
-  faceCount: number
-  rawKeys: string
-} {
-  const rawKeys = Object.keys(result).join(', ') || '无'
+function formatNumber(value: unknown): string {
+  return isFiniteNumber(value) ? `${Math.round(value)}` : '无'
+}
 
-  if (Array.isArray(result.faceInfo)) {
-    return {
-      face: result.faceInfo[0],
-      faceCount: result.faceInfo.length,
-      rawKeys,
-    }
-  }
+function formatAngle(value: unknown): string {
+  return isFiniteNumber(value) ? value.toFixed(2) : '无'
+}
 
-  if (result.faceInfo) {
-    return {
-      face: result.faceInfo,
-      faceCount: 1,
-      rawKeys,
-    }
-  }
+function lineStyle(line: OverlayLine): CSSProperties {
+  const width = Math.hypot(line.x2 - line.x1, line.y2 - line.y1)
+  const rotation = Math.atan2(line.y2 - line.y1, line.x2 - line.x1) * (180 / Math.PI)
 
   return {
-    face: result,
-    faceCount: isFiniteNumber(result.x) && isFiniteNumber(result.y) ? 1 : 0,
-    rawKeys,
+    left: `${line.x1}px`,
+    top: `${line.y1}px`,
+    width: `${width}px`,
+    transform: `rotate(${rotation}deg)`,
   }
 }
 
-function formatNumber(value: unknown): string {
-  return isFiniteNumber(value) ? `${Math.round(value)}` : '无'
+function boxStyle(box: OverlayBox): CSSProperties {
+  return {
+    left: `${box.x}px`,
+    top: `${box.y}px`,
+    width: `${box.width}px`,
+    height: `${box.height}px`,
+  }
+}
+
+function browStyle(brow: BrowGuide): CSSProperties {
+  return {
+    left: `${brow.x}px`,
+    top: `${brow.y}px`,
+    width: `${brow.width}px`,
+    height: `${brow.height}px`,
+    transform: `rotate(${brow.rotation}deg)`,
+  }
+}
+
+function dotStyle(point: { x: number; y: number }): CSSProperties {
+  return {
+    left: `${point.x}px`,
+    top: `${point.y}px`,
+  }
+}
+
+function landmarkStyle(point: OverlayLandmarkPoint): CSSProperties {
+  return {
+    left: `${point.x}px`,
+    top: `${point.y}px`,
+  }
 }
 
 export default function CameraSpikePage() {
@@ -125,15 +123,30 @@ export default function CameraSpikePage() {
   const [infoOpen, setInfoOpen] = useState(false)
   const [adjustments, setAdjustments] = useState(defaultAdjustments)
   const [activeTemplate, setActiveTemplate] = useState<BrowTemplateId>('natural')
+  const [faceAnalysis, setFaceAnalysis] = useState<FaceAnalysisResult | null>(null)
+  const [recommendation, setRecommendation] = useState<BrowRecommendation | null>(null)
+  const [overlayViewport, setOverlayViewport] = useState<OverlayViewport>(defaultOverlayViewport)
   const latestFrameRef = useRef<CameraFrameSnapshot | null>(null)
   const hasFrameRef = useRef(false)
   const [faceSummary, setFaceSummary] = useState<FaceDetectSummary>({
     status: 'idle',
     message: '等待相机帧...',
   })
+  const overlayData = useMemo(() => {
+    if (!faceAnalysis || faceAnalysis.status !== 'ok') {
+      return null
+    }
+
+    return generateOverlayData(faceAnalysis, activeTemplate, overlayViewport)
+  }, [activeTemplate, faceAnalysis, overlayViewport])
 
   useEffect(() => {
     let disposed = false
+    const systemInfo = Taro.getSystemInfoSync()
+    setOverlayViewport({
+      width: systemInfo.windowWidth,
+      height: systemInfo.windowHeight,
+    })
     const cameraContext = Taro.createCameraContext()
     const listener = cameraContext.onCameraFrame((frame) => {
       latestFrameRef.current = {
@@ -206,56 +219,64 @@ export default function CameraSpikePage() {
       return
     }
 
-    setCalibrated(true)
+    setCalibrated(false)
     setSettingsOpen(false)
     setInfoOpen(false)
     setFaceSummary({
       status: 'detecting',
-      message: '正在进行单帧人脸识别...',
+      message: '正在识别脸型...',
     })
 
     try {
-      const result = await detectFaceFromFrame(frame)
-      console.info('[camera-spike] face detect result', result)
-      const normalized = normalizeFaceDetectResult(result)
-      const face = normalized.face
+      const analysis = await analyzeFaceFrame(frame)
+      console.info('[camera] face analysis result', analysis)
 
-      if (!face || !isFiniteNumber(face.x) || !isFiniteNumber(face.y) || face.x === -1 || face.y === -1) {
+      if (analysis.status !== 'ok') {
+        setFaceAnalysis(analysis)
         setFaceSummary({
           status: 'failed',
-          message: '未解析到有效人脸，请查看原始字段',
-          rawKeys: normalized.rawKeys,
-          faceCount: normalized.faceCount,
+          message: analysis.message,
+          rawKeys: analysis.rawKeys,
+          faceCount: analysis.faceCount,
+          pointCount: analysis.pointCount,
+        })
+        Taro.showToast({
+          title: analysis.message,
+          icon: 'none',
         })
         return
       }
 
-      const rect = face.detectRect as FaceDetectRect | undefined
-      const confidence = face.confArray?.[0]
-      const angle = face.angleArray?.[0]
-      const rectWidth = rect?.width ?? rect?.weight
-
-      Taro.showToast({
-        title: '识别成功，\n已返回人脸关键点',
-        icon: 'none',
-        duration: 1800,
-      })
+      const nextRecommendation = recommendBrowTemplate(analysis)
+      setFaceAnalysis(analysis)
+      setRecommendation(nextRecommendation)
+      setActiveTemplate(nextRecommendation.templateId)
+      setAdjustments(defaultAdjustments)
+      setCalibrated(true)
       setFaceSummary({
         status: 'success',
-        message: '识别成功，已返回人脸关键点',
-        rawKeys: normalized.rawKeys,
-        faceCount: normalized.faceCount,
-        pointCount: face.pointArray?.length ?? 0,
-        center: `${formatNumber(face.x)}, ${formatNumber(face.y)}`,
-        rect: rect ? `${formatNumber(rect.originX)}, ${formatNumber(rect.originY)}, ${formatNumber(rectWidth)} x ${formatNumber(rect.height)}` : '无',
-        confidence: confidence ? `global ${confidence.global.toFixed(2)}` : '无',
-        angle: angle ? `pitch ${angle.pitch.toFixed(2)}, yaw ${angle.yaw.toFixed(2)}, roll ${angle.roll.toFixed(2)}` : '无',
+        message: analysis.message,
+        rawKeys: analysis.rawKeys,
+        faceCount: analysis.faceCount,
+        pointCount: analysis.pointCount,
+        center: analysis.center ? `${formatNumber(analysis.center.x)}, ${formatNumber(analysis.center.y)}` : '无',
+        rect: analysis.rect
+          ? `${formatNumber(analysis.rect.x)}, ${formatNumber(analysis.rect.y)}, ${formatNumber(analysis.rect.width)} x ${formatNumber(analysis.rect.height)}`
+          : '无',
+        confidence: analysis.confidence ? `global ${analysis.confidence.toFixed(2)}` : '无',
+        angle: analysis.angles
+          ? `pitch ${formatAngle(analysis.angles.pitch)}, yaw ${formatAngle(analysis.angles.yaw)}, roll ${formatAngle(analysis.angles.roll)}`
+          : '无',
       })
     } catch (error) {
-      console.error('[camera-spike] face detect failed', error)
+      console.error('[camera] face detect failed', error)
       setFaceSummary({
         status: 'failed',
-        message: '人脸识别调用失败，请查看 Console',
+        message: '人脸识别调用失败，请调整光线或距离后重试',
+      })
+      Taro.showToast({
+        title: '人脸识别调用失败，请重试',
+        icon: 'none',
       })
     }
   }
@@ -311,21 +332,40 @@ export default function CameraSpikePage() {
         </View>
       ) : null}
 
-      {calibrated ? (
+      {calibrated && overlayData ? (
         <View className='camera-page__overlay' style={overlayStyle}>
-          <View className='camera-page__calibration-badge'>眉形轮廓线</View>
-          <View className='camera-page__face-line camera-page__face-line--vertical' />
-          <View className='camera-page__face-line camera-page__face-line--horizontal' />
-          <View className={`camera-page__brow camera-page__brow--left camera-page__brow--${activeTemplate}`}>
-            <View className='camera-page__dot camera-page__dot--start' />
-            <View className='camera-page__dot camera-page__dot--peak' />
-            <View className='camera-page__dot camera-page__dot--end' />
-          </View>
-          <View className={`camera-page__brow camera-page__brow--right camera-page__brow--${activeTemplate}`}>
-            <View className='camera-page__dot camera-page__dot--start' />
-            <View className='camera-page__dot camera-page__dot--peak' />
-            <View className='camera-page__dot camera-page__dot--end' />
-          </View>
+          {overlayData.faceContourLines.map((line) => (
+            <View
+              className='camera-page__face-contour-line'
+              key={line.id}
+              style={lineStyle(line)}
+            />
+          ))}
+          {overlayData.lines.map((line) => (
+            <View
+              className={`camera-page__guide-line camera-page__guide-line--${line.kind}`}
+              key={line.id}
+              style={lineStyle(line)}
+            />
+          ))}
+          {overlayData.eyeGuides.map((eye) => (
+            <View className='camera-page__eye-guide' key={eye.id} style={boxStyle(eye)} />
+          ))}
+          {overlayData.browAreaGuides.map((area) => (
+            <View className='camera-page__brow-area-guide' key={area.id} style={boxStyle(area)} />
+          ))}
+          {overlayData.landmarkPoints.map((point) => (
+            <View className='camera-page__landmark-point' key={point.id} style={landmarkStyle(point)} />
+          ))}
+          {overlayData.browGuides.map((brow) => (
+            <View className={`camera-page__brow-guide camera-page__brow-guide--${brow.templateId}`} key={brow.side} style={browStyle(brow)}>
+              <View className='camera-page__brow-guide-upper' />
+              <View className='camera-page__brow-guide-lower' />
+              <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.start)} />
+              <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.peak)} />
+              <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.end)} />
+            </View>
+          ))}
         </View>
       ) : (
         <View className='camera-page__hint'>
@@ -358,10 +398,13 @@ export default function CameraSpikePage() {
                 onClick={() => setActiveTemplate(template.id)}
               >
                 <Image className='camera-page__template-dock-image' mode='aspectFit' src={browPreviewMap[template.id]} />
-                <Text className={`camera-page__template-dock-name ${template.id === activeTemplate ? 'camera-page__template-dock-name--active' : ''}`}>{template.name}</Text>
+                <Text className={`camera-page__template-dock-name ${template.id === activeTemplate ? 'camera-page__template-dock-name--active' : ''}`}>
+                  {recommendation?.templateId === template.id ? `推荐 ${template.name}` : template.name}
+                </Text>
               </Button>
             ))}
           </View>
+          {recommendation ? <Text className='camera-page__recommendation'>{recommendation.reason}</Text> : null}
           <View className='camera-page__compact-actions'>
             <Button className='camera-page__secondary camera-page__compact-button' onClick={runCalibrationSpike}>
               重新定标
