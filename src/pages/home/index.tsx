@@ -1,6 +1,7 @@
-import { View, Text, Button } from '@tarojs/components'
+import { View, Text, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { browTemplates } from '../../config/browTemplates'
+import indexImg from '../../assets/index-img.png'
 import './index.scss'
 
 export default function HomePage() {
@@ -27,16 +28,7 @@ export default function HomePage() {
         </View>
 
         <View className='home-page__preview'>
-          <View className='home-page__face'>
-            <View className='home-page__hair' />
-            <View className='home-page__brow home-page__brow--left' />
-            <View className='home-page__brow home-page__brow--right' />
-            <View className='home-page__eye home-page__eye--left' />
-            <View className='home-page__eye home-page__eye--right' />
-            <View className='home-page__nose' />
-            <View className='home-page__mouth' />
-            <View className='home-page__center-line' />
-          </View>
+          <Image className='home-page__preview-image' mode='aspectFill' src={indexImg} />
         </View>
       </View>
 
@@ -61,8 +53,8 @@ export default function HomePage() {
         <View className='home-page__template-list'>
           {browTemplates.map((template) => (
             <View className='home-page__template' key={template.id}>
-              <View className={`home-page__template-line home-page__template-line--${template.id}`} />
-              <Text>{template.name}</Text>
+              <Text className='home-page__template-name'>{template.name}</Text>
+              <Text className='home-page__template-desc'>{template.description}</Text>
             </View>
           ))}
         </View>

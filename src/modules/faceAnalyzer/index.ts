@@ -76,6 +76,9 @@ function getQualityResult(
   rect?: FaceRect,
   roll?: number
 ): Pick<FaceAnalysisResult, 'status' | 'message'> {
+  const maxFaceWidthRatio = 1.32
+  const minFaceWidthRatio = 0.6
+
   if (faceCount === 0 || !center || !rect || center.x === -1 || center.y === -1) {
     return { status: 'no_face', message: '未识别人脸，请调整光线或距离后重试' }
   }
@@ -88,11 +91,11 @@ function getQualityResult(
   const centerOffsetX = Math.abs(center.x - frame.width / 2) / frame.width
   const centerOffsetY = Math.abs(center.y - frame.height / 2) / frame.height
 
-  if (faceWidthRatio > 1.18) {
+  if (faceWidthRatio > maxFaceWidthRatio) {
     return { status: 'too_close', message: '距离太近，请稍微远离镜头后重试' }
   }
 
-  if (faceWidthRatio < 0.24) {
+  if (faceWidthRatio < minFaceWidthRatio) {
     return { status: 'too_far', message: '距离太远，请靠近镜头后重试' }
   }
 
