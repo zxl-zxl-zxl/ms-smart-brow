@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { View, Text, Button, Camera, Slider, Image } from '@tarojs/components'
+import { View, Text, Button, Camera, Slider, Image, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { browTemplates } from '../../config/browTemplates'
 import type { BrowTemplateId } from '../../types/brow'
@@ -14,7 +14,26 @@ import browNormal from '../../assets/brow-normal.webp'
 import browStandard from '../../assets/brow-standard.webp'
 import browFlat from '../../assets/brow-flat.webp'
 import browBend from '../../assets/brow-bend.webp'
+import normalTemplate from '../../assets/normal.png'
 import './index.scss'
+
+const browCanvasId = 'brow-overlay-canvas'
+
+const normalTemplateMetrics = {
+  imageWidth: 212,
+  imageHeight: 112,
+  contentX: 25,
+  contentY: 31,
+  contentWidth: 167,
+  contentHeight: 46,
+}
+
+const normalTemplateFit = {
+  widthScale: 1.14,
+  heightScale: 1.18,
+  minVisibleHeight: 16,
+  maxVisibleHeight: 34,
+}
 
 const defaultAdjustments: OverlayAdjustments = {
   offsetX: 0,
@@ -72,6 +91,10 @@ function formatAngle(value: unknown): string {
   return isFiniteNumber(value) ? value.toFixed(2) : '无'
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
 function lineStyle(line: OverlayLine): CSSProperties {
   const width = Math.hypot(line.x2 - line.x1, line.y2 - line.y1)
   const rotation = Math.atan2(line.y2 - line.y1, line.x2 - line.x1) * (180 / Math.PI)
@@ -103,6 +126,34 @@ function browStyle(brow: BrowGuide): CSSProperties {
   }
 }
 
+function browTemplateImageStyle(brow: BrowGuide): CSSProperties {
+  const contentWidth = brow.width * normalTemplateFit.widthScale
+  const naturalContentHeight = contentWidth / (normalTemplateMetrics.contentWidth / normalTemplateMetrics.contentHeight)
+  const contentHeight = clamp(
+    Math.max(naturalContentHeight, brow.height * normalTemplateFit.heightScale),
+    normalTemplateFit.minVisibleHeight,
+    normalTemplateFit.maxVisibleHeight
+  )
+  const scaleX = contentWidth / normalTemplateMetrics.contentWidth
+  const scaleY = contentHeight / normalTemplateMetrics.contentHeight
+  const imageWidth = normalTemplateMetrics.imageWidth * scaleX
+  const imageHeight = normalTemplateMetrics.imageHeight * scaleY
+  const contentInsetX =
+    brow.side === 'left'
+      ? normalTemplateMetrics.imageWidth - normalTemplateMetrics.contentX - normalTemplateMetrics.contentWidth
+      : normalTemplateMetrics.contentX
+  const targetContentX = (brow.width - contentWidth) / 2
+  const targetContentY = brow.height * 0.52 - contentHeight * 0.52
+
+  return {
+    left: `${targetContentX - contentInsetX * scaleX}px`,
+    top: `${targetContentY - normalTemplateMetrics.contentY * scaleY}px`,
+    width: `${imageWidth}px`,
+    height: `${imageHeight}px`,
+    transform: brow.side === 'left' ? 'scaleX(-1)' : 'none',
+  }
+}
+
 function dotStyle(point: { x: number; y: number }): CSSProperties {
   return {
     left: `${point.x}px`,
@@ -115,6 +166,121 @@ function landmarkStyle(point: OverlayLandmarkPoint): CSSProperties {
     left: `${point.x}px`,
     top: `${point.y}px`,
   }
+}
+
+function clearBrowCanvas(viewport: OverlayViewport) {
+  const context = Taro.createCanvasContext(browCanvasId)
+  context.clearRect(0, 0, viewport.width, viewport.height)
+  context.draw()
+}
+
+function getTemplateCurve(templateId: BrowTemplateId): {
+  bottomLift: number
+  upperLift: number
+  tailLift: number
+  headSlant: number
+} {
+  switch (templateId) {
+    case 'straight':
+      return { bottomLift: 0.03, upperLift: 0.04, tailLift: 0.02, headSlant: 0.08 }
+    case 'arched':
+      return { bottomLift: 0.12, upperLift: 0.18, tailLift: 0.12, headSlant: 0.12 }
+    case 'standard':
+      return { bottomLift: 0.08, upperLift: 0.12, tailLift: 0.08, headSlant: 0.1 }
+    case 'natural':
+    default:
+      return { bottomLift: 0.06, upperLift: 0.08, tailLift: 0.05, headSlant: 0.14 }
+  }
+}
+
+function drawBrowPath(context: Taro.CanvasContext, brow: BrowGuide) {
+  const curve = getTemplateCurve(brow.templateId)
+  const headBase = {
+    x: brow.x + brow.width * 0.08,
+    y: brow.y + brow.height * 0.72,
+  }
+  const bodyBase = {
+    x: brow.x + brow.width * 0.44,
+    y: brow.y + brow.height * (0.68 - curve.bottomLift * 0.12),
+  }
+  const tailBase = {
+    x: brow.x + brow.width * 0.96,
+    y: brow.y + brow.height * (0.5 - curve.tailLift * 0.18),
+  }
+  const upperStart = {
+    x: brow.x + brow.width * 0.18,
+    y: brow.y + brow.height * (0.3 - curve.upperLift * 0.08),
+  }
+  const upperPeak = {
+    x: brow.x + brow.width * brow.peakRatio,
+    y: brow.y + brow.height * (0.2 - curve.upperLift * 0.18),
+  }
+  const upperTail = {
+    x: brow.x + brow.width * 0.9,
+    y: brow.y + brow.height * (0.32 - curve.tailLift * 0.12),
+  }
+  const rotation = (brow.rotation * Math.PI) / 180
+  const originX = brow.x + brow.width / 2
+  const originY = brow.y + brow.height * 0.55
+
+  context.save()
+  context.translate(originX, originY)
+  context.rotate(rotation)
+  context.translate(-originX, -originY)
+
+  context.beginPath()
+  context.moveTo(headBase.x, headBase.y)
+  context.bezierCurveTo(
+    brow.x + brow.width * 0.26,
+    brow.y + brow.height * (0.62 - curve.bottomLift * 0.08),
+    brow.x + brow.width * 0.64,
+    brow.y + brow.height * (0.62 - curve.bottomLift * 0.18),
+    tailBase.x,
+    tailBase.y
+  )
+  context.stroke()
+
+  context.beginPath()
+  context.moveTo(upperStart.x, upperStart.y)
+  context.bezierCurveTo(
+    brow.x + brow.width * 0.36,
+    brow.y + brow.height * (0.16 - curve.upperLift * 0.12),
+    brow.x + brow.width * 0.5,
+    brow.y + brow.height * (0.14 - curve.upperLift * 0.12),
+    upperPeak.x,
+    upperPeak.y
+  )
+  context.bezierCurveTo(
+    brow.x + brow.width * 0.74,
+    brow.y + brow.height * (0.18 - curve.tailLift * 0.08),
+    brow.x + brow.width * 0.84,
+    brow.y + brow.height * (0.22 - curve.tailLift * 0.08),
+    upperTail.x,
+    upperTail.y
+  )
+  context.stroke()
+
+  context.beginPath()
+  context.moveTo(tailBase.x - brow.width * 0.08, tailBase.y + brow.height * 0.06)
+  context.quadraticCurveTo(tailBase.x - brow.width * 0.02, tailBase.y, tailBase.x + brow.width * 0.06, tailBase.y - brow.height * 0.04)
+  context.stroke()
+
+  const flowBaseX = brow.x + brow.width * 0.08
+  const flowTopY = brow.y + brow.height * 0.36
+  ;[0, 1, 2].forEach((index) => {
+    const startX = flowBaseX + brow.width * index * 0.05
+    const startY = flowTopY + brow.height * index * 0.08
+    context.beginPath()
+    context.moveTo(startX, startY + brow.height * 0.26)
+    context.quadraticCurveTo(
+      startX + brow.width * (0.03 + curve.headSlant * 0.04),
+      startY + brow.height * 0.12,
+      startX + brow.width * (0.08 + curve.headSlant * 0.02),
+      startY
+    )
+    context.stroke()
+  })
+  context.restore()
 }
 
 export default function CameraSpikePage() {
@@ -139,6 +305,28 @@ export default function CameraSpikePage() {
 
     return generateOverlayData(faceAnalysis, activeTemplate, overlayViewport)
   }, [activeTemplate, faceAnalysis, overlayViewport])
+
+  useEffect(() => {
+    if (!calibrated || !overlayData) {
+      return
+    }
+
+    const drawTimer = setTimeout(() => {
+      const context = Taro.createCanvasContext(browCanvasId)
+      context.clearRect(0, 0, overlayViewport.width, overlayViewport.height)
+      context.setStrokeStyle('rgba(241, 210, 167, 0.94)')
+      context.setLineWidth(1)
+      context.setLineCap('round')
+      context.setLineJoin('round')
+      context.setLineDash([5, 3], 0)
+      overlayData.browGuides
+        .filter((brow) => brow.templateId !== 'natural')
+        .forEach((brow) => drawBrowPath(context, brow))
+      context.draw()
+    }, 30)
+
+    return () => clearTimeout(drawTimer)
+  }, [calibrated, overlayData, overlayViewport.height, overlayViewport.width])
 
   useEffect(() => {
     let disposed = false
@@ -219,9 +407,14 @@ export default function CameraSpikePage() {
       return
     }
 
+    const shouldKeepCurrentTemplate = calibrated
+    const currentTemplate = activeTemplate
+
+    clearBrowCanvas(overlayViewport)
     setCalibrated(false)
     setSettingsOpen(false)
     setInfoOpen(false)
+    setFaceAnalysis(null)
     setFaceSummary({
       status: 'detecting',
       message: '正在识别脸型...',
@@ -248,9 +441,10 @@ export default function CameraSpikePage() {
       }
 
       const nextRecommendation = recommendBrowTemplate(analysis)
+      const nextTemplate = shouldKeepCurrentTemplate ? currentTemplate : nextRecommendation.templateId
       setFaceAnalysis(analysis)
       setRecommendation(nextRecommendation)
-      setActiveTemplate(nextRecommendation.templateId)
+      setActiveTemplate(nextTemplate)
       setAdjustments(defaultAdjustments)
       setCalibrated(true)
       setFaceSummary({
@@ -355,15 +549,27 @@ export default function CameraSpikePage() {
             <View className='camera-page__brow-area-guide' key={area.id} style={boxStyle(area)} />
           ))}
           {overlayData.landmarkPoints.map((point) => (
-            <View className='camera-page__landmark-point' key={point.id} style={landmarkStyle(point)} />
+            <View className='camera-page__landmark-point' key={point.id} style={landmarkStyle(point)}>
+              {infoOpen ? <Text className='camera-page__landmark-label'>{point.index}</Text> : null}
+            </View>
           ))}
+          <Canvas
+            canvasId={browCanvasId}
+            className='camera-page__brow-canvas'
+            style={{ width: `${overlayViewport.width}px`, height: `${overlayViewport.height}px` }}
+          />
           {overlayData.browGuides.map((brow) => (
             <View className={`camera-page__brow-guide camera-page__brow-guide--${brow.templateId}`} key={brow.side} style={browStyle(brow)}>
-              <View className='camera-page__brow-guide-upper' />
-              <View className='camera-page__brow-guide-lower' />
-              <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.start)} />
-              <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.peak)} />
-              <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.end)} />
+              {brow.templateId === 'natural' ? (
+                <Image className='camera-page__brow-template-image' mode='scaleToFill' src={normalTemplate} style={browTemplateImageStyle(brow)} />
+              ) : null}
+              {brow.templateId !== 'natural' ? (
+                <>
+                  <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.start)} />
+                  <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.peak)} />
+                  <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.end)} />
+                </>
+              ) : null}
             </View>
           ))}
         </View>
@@ -395,7 +601,10 @@ export default function CameraSpikePage() {
               <Button
                 className={`camera-page__template-dock-item ${template.id === activeTemplate ? 'camera-page__template-dock-item--active' : ''}`}
                 key={template.id}
-                onClick={() => setActiveTemplate(template.id)}
+                onClick={() => {
+                  clearBrowCanvas(overlayViewport)
+                  setActiveTemplate(template.id)
+                }}
               >
                 <Image className='camera-page__template-dock-image' mode='aspectFit' src={browPreviewMap[template.id]} />
                 <Text className={`camera-page__template-dock-name ${template.id === activeTemplate ? 'camera-page__template-dock-name--active' : ''}`}>

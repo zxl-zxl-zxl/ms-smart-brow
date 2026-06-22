@@ -42,6 +42,8 @@ export interface BrowGuide {
     peak: OverlayPoint
     end: OverlayPoint
   }
+  upperPath: OverlayPoint[]
+  lowerPath: OverlayPoint[]
 }
 
 export interface OverlayData {

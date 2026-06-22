@@ -16,33 +16,38 @@ const templateParams: Record<
   }
 > = {
   natural: {
-    peakRatio: 0.58,
-    arch: 0.32,
-    thickness: 0.16,
-    angle: 4,
-    tailLift: 0.08,
+    peakRatio: 0.62,
+    arch: 0.16,
+    thickness: 0.1,
+    angle: 2,
+    tailLift: 0.05,
   },
   standard: {
-    peakRatio: 0.62,
-    arch: 0.42,
-    thickness: 0.17,
-    angle: 7,
-    tailLift: 0.15,
+    peakRatio: 0.64,
+    arch: 0.24,
+    thickness: 0.11,
+    angle: 3,
+    tailLift: 0.08,
   },
   straight: {
-    peakRatio: 0.56,
-    arch: 0.18,
-    thickness: 0.14,
-    angle: 2,
-    tailLift: 0.02,
+    peakRatio: 0.6,
+    arch: 0.08,
+    thickness: 0.09,
+    angle: 1,
+    tailLift: 0,
   },
   arched: {
-    peakRatio: 0.6,
-    arch: 0.56,
-    thickness: 0.18,
-    angle: 5,
-    tailLift: 0.2,
+    peakRatio: 0.64,
+    arch: 0.34,
+    thickness: 0.11,
+    angle: 3,
+    tailLift: 0.1,
   },
+}
+
+const browLandmarkIndexMap: Record<'left' | 'right', number[]> = {
+  left: [33, 34, 35, 36, 37, 64, 65, 66, 67],
+  right: [38, 39, 40, 41, 42, 68, 69, 70, 71],
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -233,11 +238,16 @@ function createBrowGuide(
   faceRatio: number
 ): BrowGuide {
   const params = templateParams[templateId]
-  const height = width * (params.thickness + params.arch * 0.18)
+  const height = clamp(width * (params.thickness + params.arch * 0.08), 9, 22)
   const rotationBase = params.angle + clamp((faceRatio - 1.34) * 8, -2.5, 3.5)
   const rotation = side === 'left' ? -rotationBase : rotationBase
-  const peakY = height * (0.52 - params.arch * 0.34)
+  const startY = height * 0.52
+  const peakY = height * (0.48 - params.arch * 0.22)
   const endY = height * (0.5 - params.tailLift)
+  const thickness = clamp(height * 0.46, 4, 8)
+  const start = { x: 0, y: startY }
+  const peak = { x: width * params.peakRatio, y: peakY }
+  const end = { x: width, y: endY }
 
   return {
     side,
@@ -250,10 +260,87 @@ function createBrowGuide(
     peakRatio: params.peakRatio,
     tailLift: params.tailLift,
     keyPoints: {
-      start: { x: 0, y: height * 0.58 },
-      peak: { x: width * params.peakRatio, y: peakY },
-      end: { x: width, y: endY },
+      start,
+      peak,
+      end,
     },
+    upperPath: [start, peak, end],
+    lowerPath: [
+      { x: start.x + width * 0.04, y: start.y + thickness },
+      { x: peak.x, y: peak.y + thickness * 0.9 },
+      { x: end.x - width * 0.04, y: end.y + thickness },
+    ],
+  }
+}
+
+function getBrowGuideFromIndexedLandmarks(
+  side: 'left' | 'right',
+  templateId: BrowTemplateId,
+  landmarkPoints: OverlayLandmarkPoint[],
+  faceBox: { x: number; y: number; width: number; height: number },
+  faceRatio: number
+): BrowGuide | null {
+  const browPoints = browLandmarkIndexMap[side]
+    .map((index) => landmarkPoints[index])
+    .filter((point): point is OverlayLandmarkPoint => Boolean(point))
+  const bounds = getPointBounds(browPoints)
+
+  if (browPoints.length < 6 || !bounds || bounds.width < 18) {
+    return null
+  }
+
+  const params = templateParams[templateId]
+  const paddingX = clamp(bounds.width * 0.08, 3, 8)
+  const width = clamp(bounds.width + paddingX * 2, 42, Math.min(104, faceBox.width * 0.42))
+  const height = clamp(bounds.height * 1.12 + width * params.thickness * 0.2, 13, 28)
+  const x = clamp(bounds.x - paddingX, faceBox.x, faceBox.x + faceBox.width - width)
+  const y = clamp(bounds.y - height * 0.08, faceBox.y, faceBox.y + faceBox.height * 0.42)
+  const sortedByX = [...browPoints].sort((a, b) => a.x - b.x)
+  const firstPoint = sortedByX[0]
+  const lastPoint = sortedByX[sortedByX.length - 1]
+  const peakPoint = browPoints.reduce((current, point) => (point.y < current.y ? point : current), browPoints[0])
+  const templateRotation = params.angle + clamp((faceRatio - 1.34) * 8, -2.5, 3.5)
+  const landmarkRotation = Math.atan2(lastPoint.y - firstPoint.y, lastPoint.x - firstPoint.x) * (180 / Math.PI)
+  const baseRotation = side === 'left' ? -templateRotation : templateRotation
+  const rotation =
+    templateId === 'natural'
+      ? clamp(baseRotation * 0.42 + clamp(landmarkRotation, -8, 8) * 0.58, -7, 7)
+      : clamp(landmarkRotation, -14, 14) + (side === 'left' ? -params.tailLift * 4 : params.tailLift * 4)
+  const start = {
+    x: clamp(firstPoint.x - x, 0, width),
+    y: clamp(firstPoint.y - y, 0, height),
+  }
+  const peak = {
+    x: clamp(peakPoint.x - x, width * 0.42, width * 0.72),
+    y: clamp(peakPoint.y - y - height * params.arch * 0.08, 0, height * 0.7),
+  }
+  const end = {
+    x: clamp(lastPoint.x - x, 0, width),
+    y: clamp(lastPoint.y - y - height * params.tailLift * 0.2, 0, height),
+  }
+  const thickness = clamp(height * 0.62, 7, 14)
+
+  return {
+    side,
+    templateId,
+    x,
+    y,
+    width,
+    height,
+    rotation: Number.isFinite(rotation) ? rotation : baseRotation,
+    peakRatio: clamp(peak.x / width, 0.42, 0.72),
+    tailLift: params.tailLift,
+    keyPoints: {
+      start,
+      peak,
+      end,
+    },
+    upperPath: [start, peak, end],
+    lowerPath: [
+      { x: start.x + width * 0.04, y: start.y + thickness },
+      { x: peak.x, y: peak.y + thickness * 0.9 },
+      { x: end.x - width * 0.04, y: end.y + thickness },
+    ],
   }
 }
 
@@ -289,16 +376,33 @@ function getBrowGuideFromLandmarks(
   const params = templateParams[templateId]
   const paddingX = clamp(bounds.width * 0.08, 3, 8)
   const width = clamp(bounds.width + paddingX * 2, 42, Math.min(104, faceBox.width * 0.42))
-  const height = clamp(width * (params.thickness + params.arch * 0.12), 10, 25)
+  const height = clamp(bounds.height * 0.95 + width * params.thickness * 0.35, 13, 30)
   const x = clamp(bounds.x - paddingX, faceBox.x, faceBox.x + faceBox.width - width)
-  const y = clamp(bounds.y - height * 0.16, faceBox.y, faceBox.y + faceBox.height * 0.42)
+  const y = clamp(bounds.y - height * 0.12, faceBox.y, faceBox.y + faceBox.height * 0.42)
   const sortedByX = [...browPoints].sort((a, b) => a.x - b.x)
   const firstPoint = sortedByX[0]
   const lastPoint = sortedByX[sortedByX.length - 1]
   const peakPoint = browPoints.reduce((current, point) => (point.y < current.y ? point : current), browPoints[0])
   const templateRotation = params.angle + clamp((faceRatio - 1.34) * 8, -2.5, 3.5)
   const landmarkRotation = Math.atan2(lastPoint.y - firstPoint.y, lastPoint.x - firstPoint.x) * (180 / Math.PI)
-  const rotation = clamp(landmarkRotation, -14, 14) + (side === 'left' ? -params.tailLift * 4 : params.tailLift * 4)
+  const baseRotation = side === 'left' ? -templateRotation : templateRotation
+  const rotation =
+    templateId === 'natural'
+      ? clamp(baseRotation * 0.72 + clamp(landmarkRotation, -10, 10) * 0.28, -8, 8)
+      : clamp(landmarkRotation, -14, 14) + (side === 'left' ? -params.tailLift * 4 : params.tailLift * 4)
+  const start = {
+    x: clamp(firstPoint.x - x, 0, width),
+    y: clamp(firstPoint.y - y, 0, height),
+  }
+  const peak = {
+    x: clamp(peakPoint.x - x, width * 0.42, width * 0.72),
+    y: clamp(peakPoint.y - y - height * params.arch * 0.08, 0, height * 0.7),
+  }
+  const end = {
+    x: clamp(lastPoint.x - x, 0, width),
+    y: clamp(lastPoint.y - y - height * params.tailLift * 0.2, 0, height),
+  }
+  const thickness = clamp(height * 0.62, 7, 14)
 
   return {
     side,
@@ -308,23 +412,101 @@ function getBrowGuideFromLandmarks(
     width,
     height,
     rotation: Number.isFinite(rotation) ? rotation : side === 'left' ? -templateRotation : templateRotation,
-    peakRatio: clamp((peakPoint.x - x) / width, 0.42, 0.72),
+    peakRatio: clamp(peak.x / width, 0.42, 0.72),
     tailLift: params.tailLift,
     keyPoints: {
-      start: {
-        x: clamp(firstPoint.x - x, 0, width),
-        y: clamp(firstPoint.y - y, 0, height),
-      },
-      peak: {
-        x: clamp(peakPoint.x - x, 0, width),
-        y: clamp(peakPoint.y - y, 0, height),
-      },
-      end: {
-        x: clamp(lastPoint.x - x, 0, width),
-        y: clamp(lastPoint.y - y, 0, height),
-      },
+      start,
+      peak,
+      end,
     },
+    upperPath: [start, peak, end],
+    lowerPath: [
+      { x: start.x + width * 0.04, y: start.y + thickness },
+      { x: peak.x, y: peak.y + thickness * 0.9 },
+      { x: end.x - width * 0.04, y: end.y + thickness },
+    ],
   }
+}
+
+function resizeBrowGuide(guide: BrowGuide, width: number, height: number): BrowGuide {
+  const scaleX = width / guide.width
+  const scaleY = height / guide.height
+
+  return {
+    ...guide,
+    width,
+    height,
+    keyPoints: {
+      start: { x: guide.keyPoints.start.x * scaleX, y: guide.keyPoints.start.y * scaleY },
+      peak: { x: guide.keyPoints.peak.x * scaleX, y: guide.keyPoints.peak.y * scaleY },
+      end: { x: guide.keyPoints.end.x * scaleX, y: guide.keyPoints.end.y * scaleY },
+    },
+    upperPath: guide.upperPath.map((point) => ({ x: point.x * scaleX, y: point.y * scaleY })),
+    lowerPath: guide.lowerPath.map((point) => ({ x: point.x * scaleX, y: point.y * scaleY })),
+  }
+}
+
+function getGuideCenterDistance(guide: BrowGuide, centerX: number): number {
+  return Math.abs(guide.x + guide.width / 2 - centerX)
+}
+
+function getNaturalGuideScore(
+  guide: BrowGuide,
+  faceBox: { x: number; y: number; width: number; height: number },
+  expected: { width: number; height: number; centerDistance: number; y: number }
+): number {
+  const centerX = faceBox.x + faceBox.width / 2
+  const widthScore = Math.abs(guide.width - expected.width) / expected.width
+  const heightScore = Math.abs(guide.height - expected.height) / expected.height
+  const distanceScore = Math.abs(getGuideCenterDistance(guide, centerX) - expected.centerDistance) / expected.centerDistance
+  const yScore = Math.abs(guide.y - expected.y) / Math.max(1, faceBox.height * 0.08)
+  const rotationScore = Math.abs(guide.rotation) / 12
+
+  return widthScore * 1.1 + heightScore * 0.8 + distanceScore * 1.2 + yScore * 1.4 + rotationScore * 0.4
+}
+
+function mirrorNaturalBrowPair(
+  leftGuide: BrowGuide,
+  rightGuide: BrowGuide,
+  faceBox: { x: number; y: number; width: number; height: number },
+  expected: { width: number; height: number; centerDistance: number; y: number }
+): BrowGuide[] {
+  const centerX = faceBox.x + faceBox.width / 2
+  const source =
+    getNaturalGuideScore(leftGuide, faceBox, expected) <= getNaturalGuideScore(rightGuide, faceBox, expected)
+      ? leftGuide
+      : rightGuide
+  const width = clamp(source.width, expected.width * 0.88, Math.min(expected.width * 1.2, faceBox.width * 0.42))
+  const height = clamp(source.height, expected.height * 0.9, expected.height * 1.3)
+  const outwardOffset = clamp(faceBox.width * 0.026, 5, 10)
+  const centerDistance = clamp(
+    Math.max(getGuideCenterDistance(source, centerX), expected.centerDistance) + outwardOffset,
+    expected.centerDistance * 1.04,
+    expected.centerDistance * 1.32
+  )
+  const verticalLift = clamp(faceBox.height * 0.012, 2, 5)
+  const y = clamp(source.y * 0.85 + expected.y * 0.15 - verticalLift, faceBox.y, faceBox.y + faceBox.height * 0.42)
+  const rotation = clamp(Math.abs(source.rotation), 1.2, 5.5)
+  const sourceGuide = resizeBrowGuide(source, width, height)
+  const leftSource = source.side === 'left' ? sourceGuide : resizeBrowGuide(leftGuide, width, height)
+  const rightSource = source.side === 'right' ? sourceGuide : resizeBrowGuide(rightGuide, width, height)
+
+  return [
+    {
+      ...leftSource,
+      side: 'left',
+      x: clamp(centerX - centerDistance - width / 2, faceBox.x, centerX - width),
+      y,
+      rotation: -rotation,
+    },
+    {
+      ...rightSource,
+      side: 'right',
+      x: clamp(centerX + centerDistance - width / 2, centerX, faceBox.x + faceBox.width - width),
+      y,
+      rotation,
+    },
+  ]
 }
 
 export function generateOverlayData(
@@ -383,11 +565,23 @@ export function generateOverlayData(
   const leftEyeX = centerX - browGap / 2 - eyeWidth * 0.92
   const rightEyeX = centerX + browGap / 2 - eyeWidth * 0.08
   const leftBrowGuide =
+    (templateId === 'natural' ? getBrowGuideFromIndexedLandmarks('left', templateId, landmarkPoints, mappedFaceBox, faceRatio) : null) ??
     getBrowGuideFromLandmarks('left', templateId, landmarkPoints, mappedFaceBox, faceRatio) ??
     createBrowGuide('left', templateId, leftBrowX, browY, browWidth, faceRatio)
   const rightBrowGuide =
+    (templateId === 'natural' ? getBrowGuideFromIndexedLandmarks('right', templateId, landmarkPoints, mappedFaceBox, faceRatio) : null) ??
     getBrowGuideFromLandmarks('right', templateId, landmarkPoints, mappedFaceBox, faceRatio) ??
     createBrowGuide('right', templateId, rightBrowX, browY, browWidth, faceRatio)
+  const expectedNaturalHeight = clamp(browWidth * (templateParams.natural.thickness + templateParams.natural.arch * 0.08), 13, 24)
+  const browGuides =
+    templateId === 'natural'
+      ? mirrorNaturalBrowPair(leftBrowGuide, rightBrowGuide, mappedFaceBox, {
+          width: browWidth,
+          height: expectedNaturalHeight,
+          centerDistance: browGap / 2 + browWidth / 2,
+          y: browY,
+        })
+      : [leftBrowGuide, rightBrowGuide]
 
   return {
     width: viewport.width,
@@ -435,6 +629,6 @@ export function generateOverlayData(
     ],
     lines,
     landmarkPoints,
-    browGuides: [leftBrowGuide, rightBrowGuide],
+    browGuides,
   }
 }

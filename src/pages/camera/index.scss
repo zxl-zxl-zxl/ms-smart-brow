@@ -201,54 +201,53 @@
   transform-origin: 50% 55%;
 }
 
-.camera-page__brow-guide-upper,
-.camera-page__brow-guide-lower {
+.camera-page__brow-template-image {
   position: absolute;
-  left: 0;
-  right: 0;
-  background-repeat: repeat-x;
-  background-size: 8px 1px;
-  background-image: linear-gradient(to right, rgba(241, 210, 167, 0.92) 0 5px, transparent 5px 8px);
+  z-index: 1;
+  opacity: 0.96;
+  pointer-events: none;
+  transform-origin: 50% 50%;
 }
 
-.camera-page__brow-guide-upper {
-  top: 0;
-  height: 50%;
-  border-radius: 78% 86% 24% 18%;
+.camera-page__brow-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
 }
 
-.camera-page__brow-guide-lower {
-  bottom: 0;
-  height: 48%;
-  background-position: left bottom;
-  border-radius: 22% 18% 72% 68%;
+.camera-page__brow-outline {
+  position: absolute;
+  inset: 0;
+  border: 1px dashed rgba(241, 210, 167, 0.92);
+  border-radius: 46% 78% 36% 42% / 58% 74% 46% 42%;
+  transform: skewX(-9deg);
 }
 
-.camera-page__brow-guide--straight .camera-page__brow-guide-upper {
-  top: 3px;
-  height: 36%;
-  border-radius: 32% 34% 18% 18%;
+.camera-page__brow-outline--right {
+  transform: skewX(9deg);
 }
 
-.camera-page__brow-guide--straight .camera-page__brow-guide-lower {
-  bottom: 3px;
-  height: 34%;
-  border-radius: 18% 18% 34% 32%;
+.camera-page__brow-guide--straight .camera-page__brow-outline {
+  border-radius: 38% 58% 36% 38% / 44% 48% 42% 40%;
+  transform: skewX(-5deg);
 }
 
-.camera-page__brow-guide--arched .camera-page__brow-guide-upper {
-  top: -2px;
-  height: 60%;
-  border-radius: 96% 96% 22% 18%;
+.camera-page__brow-guide--straight .camera-page__brow-outline--right {
+  transform: skewX(5deg);
 }
 
-.camera-page__brow-guide--arched .camera-page__brow-guide-lower {
-  bottom: -1px;
-  height: 52%;
+.camera-page__brow-guide--arched .camera-page__brow-outline {
+  border-radius: 54% 84% 34% 44% / 70% 86% 44% 38%;
+  transform: skewX(-10deg);
 }
 
-.camera-page__brow-guide--standard .camera-page__brow-guide-upper {
-  height: 56%;
+.camera-page__brow-guide--arched .camera-page__brow-outline--right {
+  transform: skewX(10deg);
+}
+
+.camera-page__brow-guide--standard .camera-page__brow-outline {
+  border-radius: 48% 76% 34% 42% / 62% 78% 44% 40%;
 }
 
 .camera-page__dot {
@@ -273,6 +272,22 @@
   background: rgba(255, 255, 255, 0.86);
   box-shadow: 0 0 0 1px rgba(90, 56, 32, 0.18);
   transform: translate(-50%, -50%);
+}
+
+.camera-page__landmark-label {
+  position: absolute;
+  left: 5px;
+  top: -7px;
+  min-width: 12px;
+  padding: 1px 2px;
+  border-radius: 3px;
+  background: rgba(18, 12, 8, 0.64);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .camera-page__panel {
