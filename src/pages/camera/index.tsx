@@ -15,25 +15,12 @@ import browStandard from '../../assets/brow-standard.webp'
 import browFlat from '../../assets/brow-flat.webp'
 import browBend from '../../assets/brow-bend.webp'
 import normalTemplate from '../../assets/normal.png'
+import standardTemplate from '../../assets/standard.png'
+import flatTemplate from '../../assets/flat.png'
+import bendTemplate from '../../assets/bend.png'
 import './index.scss'
 
 const browCanvasId = 'brow-overlay-canvas'
-
-const normalTemplateMetrics = {
-  imageWidth: 212,
-  imageHeight: 112,
-  contentX: 25,
-  contentY: 31,
-  contentWidth: 167,
-  contentHeight: 46,
-}
-
-const normalTemplateFit = {
-  widthScale: 1.14,
-  heightScale: 1.18,
-  minVisibleHeight: 16,
-  maxVisibleHeight: 34,
-}
 
 const defaultAdjustments: OverlayAdjustments = {
   offsetX: 0,
@@ -48,6 +35,78 @@ const browPreviewMap: Record<BrowTemplateId, string> = {
   standard: browStandard,
   straight: browFlat,
   arched: browBend,
+}
+
+const browTemplateAssetMap: Record<BrowTemplateId, string> = {
+  natural: normalTemplate,
+  standard: standardTemplate,
+  straight: flatTemplate,
+  arched: bendTemplate,
+}
+
+const browTemplateImageConfig: Record<
+  BrowTemplateId,
+  {
+    imageWidth: number
+    imageHeight: number
+    contentX: number
+    contentY: number
+    contentWidth: number
+    contentHeight: number
+    widthScale: number
+    heightScale: number
+    minVisibleHeight: number
+    maxVisibleHeight: number
+  }
+> = {
+  natural: {
+    imageWidth: 212,
+    imageHeight: 112,
+    contentX: 25,
+    contentY: 31,
+    contentWidth: 167,
+    contentHeight: 46,
+    widthScale: 1.14,
+    heightScale: 1.18,
+    minVisibleHeight: 16,
+    maxVisibleHeight: 34,
+  },
+  standard: {
+    imageWidth: 212,
+    imageHeight: 112,
+    contentX: 27,
+    contentY: 27,
+    contentWidth: 162,
+    contentHeight: 51,
+    widthScale: 1.16,
+    heightScale: 1.18,
+    minVisibleHeight: 17,
+    maxVisibleHeight: 36,
+  },
+  straight: {
+    imageWidth: 212,
+    imageHeight: 112,
+    contentX: 23,
+    contentY: 31,
+    contentWidth: 166,
+    contentHeight: 41,
+    widthScale: 1.15,
+    heightScale: 1.08,
+    minVisibleHeight: 14,
+    maxVisibleHeight: 30,
+  },
+  arched: {
+    imageWidth: 212,
+    imageHeight: 112,
+    contentX: 31,
+    contentY: 35,
+    contentWidth: 156,
+    contentHeight: 43,
+    widthScale: 1.14,
+    heightScale: 1.18,
+    minVisibleHeight: 16,
+    maxVisibleHeight: 34,
+  },
 }
 
 const defaultOverlayViewport: OverlayViewport = {
@@ -127,27 +186,28 @@ function browStyle(brow: BrowGuide): CSSProperties {
 }
 
 function browTemplateImageStyle(brow: BrowGuide): CSSProperties {
-  const contentWidth = brow.width * normalTemplateFit.widthScale
-  const naturalContentHeight = contentWidth / (normalTemplateMetrics.contentWidth / normalTemplateMetrics.contentHeight)
+  const templateConfig = browTemplateImageConfig[brow.templateId]
+  const contentWidth = brow.width * templateConfig.widthScale
+  const naturalContentHeight = contentWidth / (templateConfig.contentWidth / templateConfig.contentHeight)
   const contentHeight = clamp(
-    Math.max(naturalContentHeight, brow.height * normalTemplateFit.heightScale),
-    normalTemplateFit.minVisibleHeight,
-    normalTemplateFit.maxVisibleHeight
+    Math.max(naturalContentHeight, brow.height * templateConfig.heightScale),
+    templateConfig.minVisibleHeight,
+    templateConfig.maxVisibleHeight
   )
-  const scaleX = contentWidth / normalTemplateMetrics.contentWidth
-  const scaleY = contentHeight / normalTemplateMetrics.contentHeight
-  const imageWidth = normalTemplateMetrics.imageWidth * scaleX
-  const imageHeight = normalTemplateMetrics.imageHeight * scaleY
+  const scaleX = contentWidth / templateConfig.contentWidth
+  const scaleY = contentHeight / templateConfig.contentHeight
+  const imageWidth = templateConfig.imageWidth * scaleX
+  const imageHeight = templateConfig.imageHeight * scaleY
   const contentInsetX =
     brow.side === 'left'
-      ? normalTemplateMetrics.imageWidth - normalTemplateMetrics.contentX - normalTemplateMetrics.contentWidth
-      : normalTemplateMetrics.contentX
+      ? templateConfig.imageWidth - templateConfig.contentX - templateConfig.contentWidth
+      : templateConfig.contentX
   const targetContentX = (brow.width - contentWidth) / 2
   const targetContentY = brow.height * 0.52 - contentHeight * 0.52
 
   return {
     left: `${targetContentX - contentInsetX * scaleX}px`,
-    top: `${targetContentY - normalTemplateMetrics.contentY * scaleY}px`,
+    top: `${targetContentY - templateConfig.contentY * scaleY}px`,
     width: `${imageWidth}px`,
     height: `${imageHeight}px`,
     transform: brow.side === 'left' ? 'scaleX(-1)' : 'none',
@@ -319,9 +379,6 @@ export default function CameraSpikePage() {
       context.setLineCap('round')
       context.setLineJoin('round')
       context.setLineDash([5, 3], 0)
-      overlayData.browGuides
-        .filter((brow) => brow.templateId !== 'natural')
-        .forEach((brow) => drawBrowPath(context, brow))
       context.draw()
     }, 30)
 
@@ -560,16 +617,7 @@ export default function CameraSpikePage() {
           />
           {overlayData.browGuides.map((brow) => (
             <View className={`camera-page__brow-guide camera-page__brow-guide--${brow.templateId}`} key={brow.side} style={browStyle(brow)}>
-              {brow.templateId === 'natural' ? (
-                <Image className='camera-page__brow-template-image' mode='scaleToFill' src={normalTemplate} style={browTemplateImageStyle(brow)} />
-              ) : null}
-              {brow.templateId !== 'natural' ? (
-                <>
-                  <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.start)} />
-                  <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.peak)} />
-                  <View className='camera-page__dot camera-page__dot--dynamic' style={dotStyle(brow.keyPoints.end)} />
-                </>
-              ) : null}
+              <Image className='camera-page__brow-template-image' mode='scaleToFill' src={browTemplateAssetMap[brow.templateId]} style={browTemplateImageStyle(brow)} />
             </View>
           ))}
         </View>

@@ -450,7 +450,7 @@ function getGuideCenterDistance(guide: BrowGuide, centerX: number): number {
   return Math.abs(guide.x + guide.width / 2 - centerX)
 }
 
-function getNaturalGuideScore(
+function getBrowGuideScore(
   guide: BrowGuide,
   faceBox: { x: number; y: number; width: number; height: number },
   expected: { width: number; height: number; centerDistance: number; y: number }
@@ -465,7 +465,7 @@ function getNaturalGuideScore(
   return widthScore * 1.1 + heightScore * 0.8 + distanceScore * 1.2 + yScore * 1.4 + rotationScore * 0.4
 }
 
-function mirrorNaturalBrowPair(
+function mirrorBrowPair(
   leftGuide: BrowGuide,
   rightGuide: BrowGuide,
   faceBox: { x: number; y: number; width: number; height: number },
@@ -473,16 +473,15 @@ function mirrorNaturalBrowPair(
 ): BrowGuide[] {
   const centerX = faceBox.x + faceBox.width / 2
   const source =
-    getNaturalGuideScore(leftGuide, faceBox, expected) <= getNaturalGuideScore(rightGuide, faceBox, expected)
+    getBrowGuideScore(leftGuide, faceBox, expected) <= getBrowGuideScore(rightGuide, faceBox, expected)
       ? leftGuide
       : rightGuide
   const width = clamp(source.width, expected.width * 0.88, Math.min(expected.width * 1.2, faceBox.width * 0.42))
   const height = clamp(source.height, expected.height * 0.9, expected.height * 1.3)
-  const outwardOffset = clamp(faceBox.width * 0.026, 5, 10)
   const centerDistance = clamp(
-    Math.max(getGuideCenterDistance(source, centerX), expected.centerDistance) + outwardOffset,
-    expected.centerDistance * 1.04,
-    expected.centerDistance * 1.32
+    faceBox.width * 0.255,
+    expected.centerDistance * 1.16,
+    expected.centerDistance * 1.48
   )
   const verticalLift = clamp(faceBox.height * 0.012, 2, 5)
   const y = clamp(source.y * 0.85 + expected.y * 0.15 - verticalLift, faceBox.y, faceBox.y + faceBox.height * 0.42)
@@ -565,23 +564,21 @@ export function generateOverlayData(
   const leftEyeX = centerX - browGap / 2 - eyeWidth * 0.92
   const rightEyeX = centerX + browGap / 2 - eyeWidth * 0.08
   const leftBrowGuide =
-    (templateId === 'natural' ? getBrowGuideFromIndexedLandmarks('left', templateId, landmarkPoints, mappedFaceBox, faceRatio) : null) ??
+    getBrowGuideFromIndexedLandmarks('left', templateId, landmarkPoints, mappedFaceBox, faceRatio) ??
     getBrowGuideFromLandmarks('left', templateId, landmarkPoints, mappedFaceBox, faceRatio) ??
     createBrowGuide('left', templateId, leftBrowX, browY, browWidth, faceRatio)
   const rightBrowGuide =
-    (templateId === 'natural' ? getBrowGuideFromIndexedLandmarks('right', templateId, landmarkPoints, mappedFaceBox, faceRatio) : null) ??
+    getBrowGuideFromIndexedLandmarks('right', templateId, landmarkPoints, mappedFaceBox, faceRatio) ??
     getBrowGuideFromLandmarks('right', templateId, landmarkPoints, mappedFaceBox, faceRatio) ??
     createBrowGuide('right', templateId, rightBrowX, browY, browWidth, faceRatio)
-  const expectedNaturalHeight = clamp(browWidth * (templateParams.natural.thickness + templateParams.natural.arch * 0.08), 13, 24)
-  const browGuides =
-    templateId === 'natural'
-      ? mirrorNaturalBrowPair(leftBrowGuide, rightBrowGuide, mappedFaceBox, {
-          width: browWidth,
-          height: expectedNaturalHeight,
-          centerDistance: browGap / 2 + browWidth / 2,
-          y: browY,
-        })
-      : [leftBrowGuide, rightBrowGuide]
+  const activeTemplateParams = templateParams[templateId]
+  const expectedTemplateHeight = clamp(browWidth * (activeTemplateParams.thickness + activeTemplateParams.arch * 0.08), 13, 24)
+  const browGuides = mirrorBrowPair(leftBrowGuide, rightBrowGuide, mappedFaceBox, {
+    width: browWidth,
+    height: expectedTemplateHeight,
+    centerDistance: browGap / 2 + browWidth / 2,
+    y: browY,
+  })
 
   return {
     width: viewport.width,
