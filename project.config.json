@@ -1,8 +1,9 @@
 {
   "miniprogramRoot": "dist/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "projectname": "ms-smart-brow",
   "description": "MS 智能画眉微信小程序",
-  "appid": "wxbac225ec8b998072",
+  "appid": "wxc4990de77f2584f1",
   "setting": {
     "urlCheck": true,
     "es6": true,

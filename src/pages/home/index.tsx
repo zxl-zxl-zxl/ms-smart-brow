@@ -1,7 +1,7 @@
 import { View, Text, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { browTemplates } from '../../config/browTemplates'
-import indexImg from '../../assets/index-img.png'
+import indexImg from '../../assets/index-img.webp'
 import './index.scss'
 
 export default function HomePage() {
