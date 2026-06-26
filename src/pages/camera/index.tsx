@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { View, Text, Button, Camera, Slider, Image, Canvas } from '@tarojs/components'
+import { View, Text, Button, Camera, Slider, Image, Canvas, Switch } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { browTemplates } from '../../config/browTemplates'
 import type { BrowTemplateId } from '../../types/brow'
@@ -347,6 +347,7 @@ export default function CameraSpikePage() {
   const [calibrated, setCalibrated] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
+  const [positionGuidesVisible, setPositionGuidesVisible] = useState(true)
   const [adjustments, setAdjustments] = useState(defaultAdjustments)
   const [activeTemplate, setActiveTemplate] = useState<BrowTemplateId>('natural')
   const [faceAnalysis, setFaceAnalysis] = useState<FaceAnalysisResult | null>(null)
@@ -466,6 +467,7 @@ export default function CameraSpikePage() {
 
     clearBrowCanvas(overlayViewport)
     setCalibrated(false)
+    setPositionGuidesVisible(true)
     setSettingsOpen(false)
     setInfoOpen(false)
     setFaceAnalysis(null)
@@ -533,7 +535,6 @@ export default function CameraSpikePage() {
     opacity: adjustments.opacity,
     transform: `translate(${adjustments.offsetX * 2}rpx, ${adjustments.offsetY * 2}rpx) scale(${adjustments.scale}) rotate(${adjustments.rotation}deg)`,
   }
-  const activeTemplateInfo = browTemplates.find((template) => template.id === activeTemplate) ?? browTemplates[0]
 
   return (
     <View className='camera-page'>
@@ -564,16 +565,23 @@ export default function CameraSpikePage() {
         ) : (
           <View className='camera-page__top-placeholder' />
         )}
-        <View className='camera-page__status'>
-          <Text className='camera-page__status-title'>{calibrated ? `${activeTemplateInfo.name}辅助中` : '前置摄像头已开启'}</Text>
-          {calibrated ? <Text className='camera-page__status-subtitle'>对齐辅助线画眉</Text> : null}
-        </View>
+        {calibrated ? (
+          <View className='camera-page__guide-toggle-wrap'>
+            <View className='camera-page__guide-toggle'>
+              <Text className='camera-page__guide-toggle-text'>辅助线</Text>
+              <Switch checked={positionGuidesVisible} color='#7b5537' onChange={(event) => setPositionGuidesVisible(event.detail.value)} />
+            </View>
+          </View>
+        ) : (
+          <View className='camera-page__status'>
+            <Text className='camera-page__status-title'>前置摄像头已开启</Text>
+          </View>
+        )}
       </View>
 
       {calibrated && infoOpen ? (
         <View className='camera-page__info-popover'>
           <Text className='camera-page__info-line'>{faceSummary.message}</Text>
-          <Text className='camera-page__info-line'>关键点：{faceSummary.pointCount ?? '无'}</Text>
           <Text className='camera-page__info-line'>人脸数：{faceSummary.faceCount ?? '无'}</Text>
           <Text className='camera-page__info-line'>中心：{faceSummary.center ?? '无'}</Text>
           <Text className='camera-page__info-line'>人脸框：{faceSummary.rect ?? '无'}</Text>
@@ -582,41 +590,43 @@ export default function CameraSpikePage() {
 
       {calibrated && overlayData ? (
         <View className='camera-page__overlay' style={overlayStyle}>
-          {overlayData.faceContourLines.map((line) => (
-            <View
-              className='camera-page__face-contour-line'
-              key={line.id}
-              style={lineStyle(line)}
-            />
-          ))}
-          {overlayData.lines.map((line) => (
-            <View
-              className={`camera-page__guide-line camera-page__guide-line--${line.kind}`}
-              key={line.id}
-              style={lineStyle(line)}
-            />
-          ))}
-          {overlayData.eyeGuides.map((eye) => (
-            <View className='camera-page__eye-guide' key={eye.id} style={boxStyle(eye)} />
-          ))}
-          {overlayData.browAreaGuides.map((area) => (
-            <View className='camera-page__brow-area-guide' key={area.id} style={boxStyle(area)} />
-          ))}
-          {overlayData.landmarkPoints.map((point) => (
-            <View className='camera-page__landmark-point' key={point.id} style={landmarkStyle(point)}>
-              {infoOpen ? <Text className='camera-page__landmark-label'>{point.index}</Text> : null}
-            </View>
-          ))}
-          <Canvas
-            canvasId={browCanvasId}
-            className='camera-page__brow-canvas'
-            style={{ width: `${overlayViewport.width}px`, height: `${overlayViewport.height}px` }}
-          />
-          {overlayData.browGuides.map((brow) => (
-            <View className={`camera-page__brow-guide camera-page__brow-guide--${brow.templateId}`} key={brow.side} style={browStyle(brow)}>
-              <Image className='camera-page__brow-template-image' mode='scaleToFill' src={browTemplateAssetMap[brow.templateId]} style={browTemplateImageStyle(brow)} />
-            </View>
-          ))}
+          {positionGuidesVisible ? (
+            <>
+              {overlayData.faceContourLines.map((line) => (
+                <View
+                  className='camera-page__face-contour-line'
+                  key={line.id}
+                  style={lineStyle(line)}
+                />
+              ))}
+              {overlayData.lines.map((line) => (
+                <View
+                  className={`camera-page__guide-line camera-page__guide-line--${line.kind}`}
+                  key={line.id}
+                  style={lineStyle(line)}
+                />
+              ))}
+              {overlayData.eyeGuides.map((eye) => (
+                <View className='camera-page__eye-guide' key={eye.id} style={boxStyle(eye)} />
+              ))}
+              {overlayData.browAreaGuides.map((area) => (
+                <View className='camera-page__brow-area-guide' key={area.id} style={boxStyle(area)} />
+              ))}
+              {overlayData.landmarkPoints.map((point) => (
+                <View className='camera-page__landmark-point' key={point.id} style={landmarkStyle(point)} />
+              ))}
+              <Canvas
+                canvasId={browCanvasId}
+                className='camera-page__brow-canvas'
+                style={{ width: `${overlayViewport.width}px`, height: `${overlayViewport.height}px` }}
+              />
+              {overlayData.browGuides.map((brow) => (
+                <View className={`camera-page__brow-guide camera-page__brow-guide--${brow.templateId}`} key={brow.side} style={browStyle(brow)}>
+                  <Image className='camera-page__brow-template-image' mode='scaleToFill' src={browTemplateAssetMap[brow.templateId]} style={browTemplateImageStyle(brow)} />
+                </View>
+              ))}
+            </>
+          ) : null}
         </View>
       ) : (
         <View className='camera-page__hint'>
