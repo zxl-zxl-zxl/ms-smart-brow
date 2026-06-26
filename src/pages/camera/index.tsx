@@ -464,9 +464,6 @@ export default function CameraSpikePage() {
       return
     }
 
-    const shouldKeepCurrentTemplate = calibrated
-    const currentTemplate = activeTemplate
-
     clearBrowCanvas(overlayViewport)
     setCalibrated(false)
     setSettingsOpen(false)
@@ -498,7 +495,7 @@ export default function CameraSpikePage() {
       }
 
       const nextRecommendation = recommendBrowTemplate(analysis)
-      const nextTemplate = shouldKeepCurrentTemplate ? currentTemplate : nextRecommendation.templateId
+      const nextTemplate = nextRecommendation.templateId
       setFaceAnalysis(analysis)
       setRecommendation(nextRecommendation)
       setActiveTemplate(nextTemplate)

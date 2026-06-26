@@ -76,7 +76,7 @@ function getQualityResult(
   rect?: FaceRect,
   roll?: number
 ): Pick<FaceAnalysisResult, 'status' | 'message'> {
-  const maxFaceWidthRatio = 1.32
+  const maxFaceWidthRatio = 1.5
   const minFaceWidthRatio = 0.6
 
   if (faceCount === 0 || !center || !rect || center.x === -1 || center.y === -1) {
