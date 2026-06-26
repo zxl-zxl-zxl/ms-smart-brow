@@ -22,10 +22,18 @@ function createUserId() {
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, '0'),
     String(date.getDate()).padStart(2, '0'),
+    String(date.getHours()).padStart(2, '0'),
+    String(date.getMinutes()).padStart(2, '0'),
+    String(date.getSeconds()).padStart(2, '0'),
   ].join('')
   const random = Math.random().toString(36).slice(2, 8)
 
   return `usr_${stamp}_${random}`
+}
+
+function toClientUser(user) {
+  const { openid: _openid, ...clientUser } = user
+  return clientUser
 }
 
 exports.main = async (event) => {
@@ -53,11 +61,11 @@ exports.main = async (event) => {
 
     return {
       isNew: false,
-      user: {
+      user: toClientUser({
         ...user,
         lastLoginAt: new Date(),
         updatedAt: new Date(),
-      },
+      }),
     }
   }
 
@@ -79,13 +87,13 @@ exports.main = async (event) => {
 
   return {
     isNew: true,
-    user: {
+    user: toClientUser({
       _id: result._id,
       ...user,
       firstLoginAt: new Date(),
       lastLoginAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
+    }),
   }
 }

@@ -4,7 +4,6 @@ export type MemberLevel = 'free' | 'plus' | 'pro'
 
 export interface UserProfile {
   userId: string
-  openid: string
   nickname?: string
   avatarUrl?: string
   memberStatus: MemberStatus
