@@ -65,7 +65,7 @@ flowchart TB
 
 V1 页面：
 
-- `home`：首页，引流、产品说明、登录入口、我的入口。
+- `home`：首页，引流、产品说明、静默身份初始化入口、我的入口。
 - `camera`：相机定标与画眉辅助核心页面。
 - `save-success`：保存成功页。
 - `profile`：个人中心。
@@ -76,17 +76,15 @@ V1 页面：
 
 ```mermaid
 flowchart TD
-  Home["首页"] -->|点击开始智能画眉| LoginA{"是否已登录"}
-  LoginA -->|否| DoLoginA["微信登录"]
-  LoginA -->|是| Camera["相机页"]
-  DoLoginA -->|成功| Camera
-  DoLoginA -->|失败/拒绝| HomeToast["Toast: 登录后可使用智能画眉服务"]
+  Home["首页"] -->|点击开始智能画眉| InitA["静默调用 initUser"]
+  InitA -->|成功| Camera["相机页"]
+  InitA -->|失败| ExperienceToast["Toast: 身份初始化失败，已进入体验模式"]
+  ExperienceToast --> Camera
 
-  Home -->|点击我的| LoginB{"是否已登录"}
-  LoginB -->|否| DoLoginB["微信登录"]
-  LoginB -->|是| Profile["个人中心"]
-  DoLoginB -->|成功| Profile
-  DoLoginB -->|失败/拒绝| HomeToast
+  Home -->|点击我的| InitB["静默调用 initUser"]
+  InitB -->|成功| Profile["个人中心"]
+  InitB -->|失败| ProfileToast["Toast: 个人中心暂不可用，可先体验智能画眉"]
+  ProfileToast --> Home
 
   Camera -->|相机未授权| PermissionGuide["相机权限引导页"]
   PermissionGuide -->|返回首页| Home
@@ -171,7 +169,7 @@ cloudfunctions/
 
 | 模块 | 职责 | V1 说明 |
 |---|---|---|
-| `auth` | 登录状态、微信登录、用户初始化 | 调用云函数获取/创建用户 |
+| `auth` | 微信静默身份初始化、用户初始化 | 调用云函数获取/创建用户；MVP 阶段相机入口失败可降级为体验模式 |
 | `cloud` | 云函数调用封装 | 统一错误处理和 loading 状态 |
 | `camera` | 相机权限、相机上下文、拍照保存 | 保留微信原生 API 适配 |
 | `permissions` | 相机/相册授权检查与引导 | 页面和弹窗复用 |
@@ -406,7 +404,7 @@ V1 云开发能力：
 - `camera` 模块：不同端相机 API 不同。
 - `faceAnalyzer` 模块：不同端可用识别能力不同。
 - `overlayRenderer` 模块：小程序 Canvas、App Canvas、Web Canvas 实现可能不同。
-- `auth` 模块：微信登录、手机号登录、Apple 登录等身份来源不同。
+- `auth` 模块：微信身份、手机号登录、Apple 登录等身份来源不同。
 - `cloud` 模块：微信云开发未来可能替换为自建 API。
 
 多端演进建议：
@@ -462,7 +460,7 @@ flowchart LR
 1. 技术 Spike：相机、覆盖层、保存净图、人脸识别验证。
 2. 初始化 Taro + TypeScript 工程。
 3. 建立主题变量和基础组件。
-4. 接入微信云开发登录和用户初始化。
+4. 接入微信云开发静默身份初始化和用户初始化。
 5. 开发首页、个人中心、隐私说明、关于我们。
 6. 开发相机页初始状态和权限引导。
 7. 开发定标识别流程。

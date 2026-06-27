@@ -1,12 +1,55 @@
+import { useState } from 'react'
 import { View, Text, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { browTemplates } from '../../config/browTemplates'
-import indexImg from '../../assets/index-img.webp'
+import { initUser } from '../../modules/user'
+import indexImg from '../../assets/index-img.png'
 import './index.scss'
 
 export default function HomePage() {
-  const goCamera = () => {
+  const [initializingTarget, setInitializingTarget] = useState<'camera' | 'profile' | null>(null)
+
+  const goCamera = async () => {
+    if (initializingTarget) {
+      return
+    }
+
+    setInitializingTarget('camera')
+
+    try {
+      await initUser()
+    } catch (error) {
+      console.error('[home] init user before camera failed', error)
+      Taro.showToast({
+        title: '身份初始化失败，已进入体验模式',
+        icon: 'none',
+      })
+    } finally {
+      setInitializingTarget(null)
+    }
+
     Taro.navigateTo({ url: '/pages/camera/index' })
+  }
+
+  const goProfile = async () => {
+    if (initializingTarget) {
+      return
+    }
+
+    setInitializingTarget('profile')
+
+    try {
+      await initUser()
+      Taro.navigateTo({ url: '/pages/profile/index' })
+    } catch (error) {
+      console.error('[home] init user before profile failed', error)
+      Taro.showToast({
+        title: '个人中心暂不可用，可先体验智能画眉',
+        icon: 'none',
+      })
+    } finally {
+      setInitializingTarget(null)
+    }
   }
 
   return (
@@ -16,8 +59,13 @@ export default function HomePage() {
           <Text className='home-page__eyebrow'>MS SMART BROW</Text>
           <Text className='home-page__brand'>MS 智能画眉</Text>
         </View>
-        <Button className='home-page__profile' onClick={() => Taro.navigateTo({ url: '/pages/profile/index' })}>
-          我的
+        <Button
+          className='home-page__profile'
+          loading={initializingTarget === 'profile'}
+          disabled={initializingTarget !== null}
+          onClick={goProfile}
+        >
+          {initializingTarget === 'profile' ? '进入中' : '我的'}
         </Button>
       </View>
 
@@ -61,8 +109,13 @@ export default function HomePage() {
       </View>
 
       <View className='home-page__bottom-bar'>
-        <Button className='home-page__cta' onClick={goCamera}>
-          开始智能画眉
+        <Button
+          className='home-page__cta'
+          loading={initializingTarget === 'camera'}
+          disabled={initializingTarget !== null}
+          onClick={goCamera}
+        >
+          {initializingTarget === 'camera' ? '正在初始化身份' : '开始智能画眉'}
         </Button>
         <Text className='home-page__privacy'>仅在设备本地识别 · 不上传人脸数据</Text>
       </View>
