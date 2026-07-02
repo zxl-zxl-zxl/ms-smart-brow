@@ -21,6 +21,20 @@ import bendTemplate from '../../assets/bend.png'
 import './index.scss'
 
 const browCanvasId = 'brow-overlay-canvas'
+// 用于校准后实时辅助的主开关。设置为 false 可保持原始的固定叠加流：不进行周期性的人脸检测、跟踪或自动校准。
+const realtimeAssistEnabled = true
+const trackingIntervalMs = 420
+const trackingSmoothing = 0.28
+const trackingDeadZonePx = 2.5
+const trackingScaleDeadZone = 0.015
+const trackingRotationDeadZone = 0.8
+const maxTrackingTranslateRatio = 0.18
+const maxTrackingScaleDelta = 0.35
+const maxTrackingRotation = 8
+const autoCalibrationScaleThreshold = 0.035
+const autoCalibrationTranslateThresholdRatio = 0.025
+const autoCalibrationStableFrames = 2
+const autoCalibrationCooldownMs = 1400
 
 const defaultAdjustments: OverlayAdjustments = {
   offsetX: 0,
@@ -114,6 +128,13 @@ const defaultOverlayViewport: OverlayViewport = {
   height: 667,
 }
 
+const defaultTrackingTransform = {
+  offsetX: 0,
+  offsetY: 0,
+  scale: 1,
+  rotation: 0,
+}
+
 interface FaceDetectSummary {
   status: 'idle' | 'ready' | 'detecting' | 'success' | 'failed'
   message: string
@@ -124,6 +145,20 @@ interface FaceDetectSummary {
   rect?: string
   confidence?: string
   angle?: string
+}
+
+interface FaceTrackingSnapshot {
+  centerX: number
+  centerY: number
+  faceWidth: number
+  roll: number
+}
+
+interface FaceTrackingTransform {
+  offsetX: number
+  offsetY: number
+  scale: number
+  rotation: number
 }
 
 function takeCameraPhoto(): Promise<Taro.CameraContext.TakePhotoSuccessCallbackResult> {
@@ -152,6 +187,105 @@ function formatAngle(value: unknown): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+function lerp(current: number, target: number, factor: number): number {
+  return current + (target - current) * factor
+}
+
+function applyDeadZone(value: number, threshold: number, fallback: number): number {
+  return Math.abs(value - fallback) < threshold ? fallback : value
+}
+
+function getCameraCoverTransform(
+  analysis: FaceAnalysisResult,
+  viewport: OverlayViewport
+): {
+  scale: number
+  offsetX: number
+  offsetY: number
+} {
+  const scale = Math.max(viewport.width / analysis.frameWidth, viewport.height / analysis.frameHeight)
+  const renderedWidth = analysis.frameWidth * scale
+  const renderedHeight = analysis.frameHeight * scale
+
+  return {
+    scale,
+    offsetX: (viewport.width - renderedWidth) / 2,
+    offsetY: (viewport.height - renderedHeight) / 2,
+  }
+}
+
+function getRollDegrees(analysis: FaceAnalysisResult): number {
+  const roll = analysis.angles?.roll
+
+  return isFiniteNumber(roll) ? roll * (180 / Math.PI) : 0
+}
+
+function getTrackingSnapshot(analysis: FaceAnalysisResult, viewport: OverlayViewport): FaceTrackingSnapshot | null {
+  if (!analysis.center || !analysis.rect || analysis.faceCount !== 1) {
+    return null
+  }
+
+  const transform = getCameraCoverTransform(analysis, viewport)
+
+  return {
+    centerX: analysis.center.x * transform.scale + transform.offsetX,
+    centerY: analysis.center.y * transform.scale + transform.offsetY,
+    faceWidth: analysis.rect.width * transform.scale,
+    roll: getRollDegrees(analysis),
+  }
+}
+
+function canUseAnalysisForTracking(analysis: FaceAnalysisResult): boolean {
+  return analysis.faceCount === 1 && Boolean(analysis.center && analysis.rect) && analysis.status !== 'multiple_faces' && analysis.status !== 'no_face'
+}
+
+function canUseAnalysisForOverlay(analysis: FaceAnalysisResult, calibrated: boolean): boolean {
+  return analysis.status === 'ok' || (calibrated && canUseAnalysisForTracking(analysis))
+}
+
+function shouldRunAutoCalibration(
+  base: FaceTrackingSnapshot,
+  current: FaceTrackingSnapshot,
+  viewport: OverlayViewport
+): boolean {
+  const scaleDelta = Math.abs(current.faceWidth / base.faceWidth - 1)
+  const translateRatio = Math.max(Math.abs(current.centerX - base.centerX) / viewport.width, Math.abs(current.centerY - base.centerY) / viewport.height)
+
+  return scaleDelta >= autoCalibrationScaleThreshold || translateRatio >= autoCalibrationTranslateThresholdRatio
+}
+
+function getTargetTrackingTransform(
+  base: FaceTrackingSnapshot,
+  current: FaceTrackingSnapshot,
+  viewport: OverlayViewport
+): FaceTrackingTransform {
+  const maxOffsetX = viewport.width * maxTrackingTranslateRatio
+  const maxOffsetY = viewport.height * maxTrackingTranslateRatio
+  const rawScale = current.faceWidth / base.faceWidth
+  const scale = clamp(rawScale, 1 - maxTrackingScaleDelta, 1 + maxTrackingScaleDelta)
+
+  return {
+    offsetX: clamp(current.centerX - base.centerX, -maxOffsetX, maxOffsetX),
+    offsetY: clamp(current.centerY - base.centerY, -maxOffsetY, maxOffsetY),
+    scale,
+    rotation: clamp(current.roll - base.roll, -maxTrackingRotation, maxTrackingRotation),
+  }
+}
+
+function smoothTrackingTransform(current: FaceTrackingTransform, target: FaceTrackingTransform): FaceTrackingTransform {
+  const nextOffsetX = applyDeadZone(target.offsetX, trackingDeadZonePx, current.offsetX)
+  const nextOffsetY = applyDeadZone(target.offsetY, trackingDeadZonePx, current.offsetY)
+  const nextScale = applyDeadZone(target.scale, trackingScaleDeadZone, current.scale)
+  const nextRotation = applyDeadZone(target.rotation, trackingRotationDeadZone, current.rotation)
+
+  return {
+    offsetX: lerp(current.offsetX, nextOffsetX, trackingSmoothing),
+    offsetY: lerp(current.offsetY, nextOffsetY, trackingSmoothing),
+    scale: lerp(current.scale, nextScale, trackingSmoothing),
+    rotation: lerp(current.rotation, nextRotation, trackingSmoothing),
+  }
 }
 
 function lineStyle(line: OverlayLine): CSSProperties {
@@ -353,19 +487,25 @@ export default function CameraSpikePage() {
   const [faceAnalysis, setFaceAnalysis] = useState<FaceAnalysisResult | null>(null)
   const [recommendation, setRecommendation] = useState<BrowRecommendation | null>(null)
   const [overlayViewport, setOverlayViewport] = useState<OverlayViewport>(defaultOverlayViewport)
+  const [trackingTransform, setTrackingTransform] = useState<FaceTrackingTransform>(defaultTrackingTransform)
   const latestFrameRef = useRef<CameraFrameSnapshot | null>(null)
+  const baseTrackingSnapshotRef = useRef<FaceTrackingSnapshot | null>(null)
+  const trackingBusyRef = useRef(false)
+  const trackingMissCountRef = useRef(0)
+  const autoCalibrationHitCountRef = useRef(0)
+  const lastAutoCalibrationAtRef = useRef(0)
   const hasFrameRef = useRef(false)
   const [faceSummary, setFaceSummary] = useState<FaceDetectSummary>({
     status: 'idle',
     message: '等待相机帧...',
   })
   const overlayData = useMemo(() => {
-    if (!faceAnalysis || faceAnalysis.status !== 'ok') {
+    if (!faceAnalysis || !canUseAnalysisForOverlay(faceAnalysis, calibrated)) {
       return null
     }
 
     return generateOverlayData(faceAnalysis, activeTemplate, overlayViewport)
-  }, [activeTemplate, faceAnalysis, overlayViewport])
+  }, [activeTemplate, calibrated, faceAnalysis, overlayViewport])
 
   useEffect(() => {
     if (!calibrated || !overlayData) {
@@ -437,6 +577,81 @@ export default function CameraSpikePage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!realtimeAssistEnabled || !calibrated || !baseTrackingSnapshotRef.current) {
+      trackingBusyRef.current = false
+      return
+    }
+
+    let disposed = false
+
+    const trackFace = async () => {
+      const frame = latestFrameRef.current
+      const baseSnapshot = baseTrackingSnapshotRef.current
+
+      if (!frame || !baseSnapshot || trackingBusyRef.current) {
+        return
+      }
+
+      trackingBusyRef.current = true
+
+      try {
+        const analysis = await analyzeFaceFrame(frame)
+
+        if (disposed) {
+          return
+        }
+
+        if (!canUseAnalysisForTracking(analysis)) {
+          trackingMissCountRef.current += 1
+          return
+        }
+
+        const currentSnapshot = getTrackingSnapshot(analysis, overlayViewport)
+
+        if (!currentSnapshot) {
+          trackingMissCountRef.current += 1
+          return
+        }
+
+        if (shouldRunAutoCalibration(baseSnapshot, currentSnapshot, overlayViewport)) {
+          autoCalibrationHitCountRef.current += 1
+
+          if (autoCalibrationHitCountRef.current >= autoCalibrationStableFrames && Date.now() - lastAutoCalibrationAtRef.current >= autoCalibrationCooldownMs) {
+            baseTrackingSnapshotRef.current = currentSnapshot
+            lastAutoCalibrationAtRef.current = Date.now()
+            autoCalibrationHitCountRef.current = 0
+            trackingMissCountRef.current = 0
+            setFaceAnalysis(analysis)
+            setTrackingTransform(defaultTrackingTransform)
+            return
+          }
+        } else {
+          autoCalibrationHitCountRef.current = 0
+        }
+
+        const targetTransform = getTargetTrackingTransform(baseSnapshot, currentSnapshot, overlayViewport)
+        trackingMissCountRef.current = 0
+        setTrackingTransform((current) => smoothTrackingTransform(current, targetTransform))
+      } catch (error) {
+        if (!disposed) {
+          trackingMissCountRef.current += 1
+          console.warn('[camera] face tracking skipped', error)
+        }
+      } finally {
+        trackingBusyRef.current = false
+      }
+    }
+
+    trackFace()
+    const trackingTimer = setInterval(trackFace, trackingIntervalMs)
+
+    return () => {
+      disposed = true
+      clearInterval(trackingTimer)
+    }
+  }, [calibrated, overlayViewport])
+
   const updateAdjustment = (key: keyof OverlayAdjustments, value: number) => {
     setAdjustments((current) => ({ ...current, [key]: value }))
   }
@@ -471,6 +686,11 @@ export default function CameraSpikePage() {
     setSettingsOpen(false)
     setInfoOpen(false)
     setFaceAnalysis(null)
+    setTrackingTransform(defaultTrackingTransform)
+    baseTrackingSnapshotRef.current = null
+    trackingMissCountRef.current = 0
+    autoCalibrationHitCountRef.current = 0
+    lastAutoCalibrationAtRef.current = 0
     setFaceSummary({
       status: 'detecting',
       message: '正在识别脸型...',
@@ -498,10 +718,12 @@ export default function CameraSpikePage() {
 
       const nextRecommendation = recommendBrowTemplate(analysis)
       const nextTemplate = nextRecommendation.templateId
+      baseTrackingSnapshotRef.current = getTrackingSnapshot(analysis, overlayViewport)
       setFaceAnalysis(analysis)
       setRecommendation(nextRecommendation)
       setActiveTemplate(nextTemplate)
       setAdjustments(defaultAdjustments)
+      setTrackingTransform(defaultTrackingTransform)
       setCalibrated(true)
       setFaceSummary({
         status: 'success',
@@ -531,9 +753,10 @@ export default function CameraSpikePage() {
     }
   }
 
-  const overlayStyle = {
+  const effectiveTrackingTransform = realtimeAssistEnabled ? trackingTransform : defaultTrackingTransform
+  const overlayStyle: CSSProperties = {
     opacity: adjustments.opacity,
-    transform: `translate(${adjustments.offsetX * 2}rpx, ${adjustments.offsetY * 2}rpx) scale(${adjustments.scale}) rotate(${adjustments.rotation}deg)`,
+    transform: `translate(${effectiveTrackingTransform.offsetX}px, ${effectiveTrackingTransform.offsetY}px) scale(${effectiveTrackingTransform.scale}) rotate(${effectiveTrackingTransform.rotation}deg) translate(${adjustments.offsetX * 2}rpx, ${adjustments.offsetY * 2}rpx) scale(${adjustments.scale}) rotate(${adjustments.rotation}deg)`,
   }
 
   return (
