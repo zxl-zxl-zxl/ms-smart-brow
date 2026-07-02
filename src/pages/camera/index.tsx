@@ -21,8 +21,8 @@ import bendTemplate from '../../assets/bend.png'
 import './index.scss'
 
 const browCanvasId = 'brow-overlay-canvas'
-// 用于校准后实时辅助的主开关。设置为 false 可保持原始的固定叠加流：不进行周期性的人脸检测、跟踪或自动校准。
-const realtimeAssistEnabled = true
+// 实时辅助默认开关：关闭后定标完成不会继续周期检测，也不会执行跟随或自动定标。
+const defaultRealtimeAssistEnabled = true
 const trackingIntervalMs = 420
 const trackingSmoothing = 0.28
 const trackingDeadZonePx = 2.5
@@ -482,6 +482,7 @@ export default function CameraSpikePage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)
   const [positionGuidesVisible, setPositionGuidesVisible] = useState(true)
+  const [realtimeAssistEnabled, setRealtimeAssistEnabled] = useState(defaultRealtimeAssistEnabled)
   const [adjustments, setAdjustments] = useState(defaultAdjustments)
   const [activeTemplate, setActiveTemplate] = useState<BrowTemplateId>('natural')
   const [faceAnalysis, setFaceAnalysis] = useState<FaceAnalysisResult | null>(null)
@@ -650,10 +651,21 @@ export default function CameraSpikePage() {
       disposed = true
       clearInterval(trackingTimer)
     }
-  }, [calibrated, overlayViewport])
+  }, [calibrated, overlayViewport, realtimeAssistEnabled])
 
   const updateAdjustment = (key: keyof OverlayAdjustments, value: number) => {
     setAdjustments((current) => ({ ...current, [key]: value }))
+  }
+
+  const updateRealtimeAssistEnabled = (enabled: boolean) => {
+    setRealtimeAssistEnabled(enabled)
+
+    if (!enabled) {
+      trackingBusyRef.current = false
+      autoCalibrationHitCountRef.current = 0
+      trackingMissCountRef.current = 0
+      setTrackingTransform(defaultTrackingTransform)
+    }
   }
 
   const saveCleanPhoto = async () => {
@@ -776,30 +788,43 @@ export default function CameraSpikePage() {
       />
 
       <View className='camera-page__top'>
+        <View className='camera-page__top-line'>
+          {calibrated ? (
+            <View className='camera-page__tools'>
+              <Button className='camera-page__settings-entry' onClick={() => setSettingsOpen(true)}>
+                微调
+              </Button>
+              <Button className='camera-page__info-entry' onClick={() => setInfoOpen((current) => !current)}>
+                i
+              </Button>
+            </View>
+          ) : (
+            <View className='camera-page__top-placeholder' />
+          )}
+          {calibrated ? (
+            <View className='camera-page__guide-toggle-wrap'>
+              <View className='camera-page__guide-toggle'>
+                <Text className='camera-page__guide-toggle-text'>辅助线</Text>
+                <Switch checked={positionGuidesVisible} color='#7b5537' onChange={(event) => setPositionGuidesVisible(event.detail.value)} />
+              </View>
+            </View>
+          ) : (
+            <View className='camera-page__status'>
+              <Text className='camera-page__status-title'>前置摄像头已开启</Text>
+            </View>
+          )}
+        </View>
         {calibrated ? (
-          <View className='camera-page__tools'>
-            <Button className='camera-page__settings-entry' onClick={() => setSettingsOpen(true)}>
-              微调
-            </Button>
-            <Button className='camera-page__info-entry' onClick={() => setInfoOpen((current) => !current)}>
-              i
-            </Button>
-          </View>
-        ) : (
-          <View className='camera-page__top-placeholder' />
-        )}
-        {calibrated ? (
-          <View className='camera-page__guide-toggle-wrap'>
-            <View className='camera-page__guide-toggle'>
-              <Text className='camera-page__guide-toggle-text'>辅助线</Text>
-              <Switch checked={positionGuidesVisible} color='#7b5537' onChange={(event) => setPositionGuidesVisible(event.detail.value)} />
+          <View className='camera-page__top-line'>
+            <View className='camera-page__top-placeholder' />
+            <View className='camera-page__guide-toggle-wrap'>
+              <View className='camera-page__guide-toggle'>
+                <Text className='camera-page__guide-toggle-text'>实时</Text>
+                <Switch checked={realtimeAssistEnabled} color='#7b5537' onChange={(event) => updateRealtimeAssistEnabled(event.detail.value)} />
+              </View>
             </View>
           </View>
-        ) : (
-          <View className='camera-page__status'>
-            <Text className='camera-page__status-title'>前置摄像头已开启</Text>
-          </View>
-        )}
+        ) : null}
       </View>
 
       {calibrated && infoOpen ? (

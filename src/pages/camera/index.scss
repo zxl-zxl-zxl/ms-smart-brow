@@ -19,8 +19,15 @@
   right: 12px;
   z-index: 5;
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.camera-page__top-line {
+  display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
 }
 
 .camera-page__tools {
@@ -91,17 +98,17 @@
 
 .camera-page__guide-toggle-wrap {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
-  justify-content: center;
   min-width: 96px;
   min-height: 36px;
   color: rgba(251, 247, 241, 0.92);
-  text-align: center;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.42);
 }
 
 .camera-page__guide-toggle {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
   min-height: 36px;
@@ -113,10 +120,6 @@
   font-size: 13px;
   font-weight: 800;
   line-height: 1;
-}
-
-.camera-page__settings-entry {
-  min-width: 82px;
 }
 
 .camera-page__top-placeholder {
