@@ -1,8 +1,11 @@
 import { View, Text, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { useAppShare } from '../../modules/share'
 import './index.scss'
 
 export default function SaveSuccessPage() {
+  useAppShare()
+
   return (
     <View className='save-success-page page-shell'>
       <View className='save-success-page__card glass-card'>

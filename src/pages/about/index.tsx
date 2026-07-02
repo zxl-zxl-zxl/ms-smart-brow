@@ -1,7 +1,10 @@
 import { View, Text } from '@tarojs/components'
+import { useAppShare } from '../../modules/share'
 import './index.scss'
 
 export default function AboutPage() {
+  useAppShare()
+
   return (
     <View className='about-page page-shell'>
       <View className='about-page__hero glass-card'>

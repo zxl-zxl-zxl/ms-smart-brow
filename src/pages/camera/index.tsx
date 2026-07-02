@@ -10,6 +10,7 @@ import type { BrowGuide, OverlayBox, OverlayLandmarkPoint, OverlayLine, OverlayV
 import { analyzeFaceFrame } from '../../modules/faceAnalyzer'
 import { generateOverlayData } from '../../modules/browEngine'
 import { recommendBrowTemplate, type BrowRecommendation } from '../../modules/recommendation'
+import { useAppShare } from '../../modules/share'
 import browNormal from '../../assets/brow-normal.webp'
 import browStandard from '../../assets/brow-standard.webp'
 import browFlat from '../../assets/brow-flat.webp'
@@ -478,6 +479,8 @@ function drawBrowPath(context: Taro.CanvasContext, brow: BrowGuide) {
 }
 
 export default function CameraSpikePage() {
+  useAppShare()
+
   const [calibrated, setCalibrated] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [infoOpen, setInfoOpen] = useState(false)

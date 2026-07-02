@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { hasCloudEnv } from '../../config/cloud'
+import { useAppShare } from '../../modules/share'
 import { initUser } from '../../modules/user'
 import type { UserProfile } from '../../types/user'
 import './index.scss'
 
 export default function ProfilePage() {
+  useAppShare()
+
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(hasCloudEnv() ? '正在初始化用户身份...' : '未配置云开发环境 ID')

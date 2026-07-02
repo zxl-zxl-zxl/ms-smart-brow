@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { View, Text, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { browTemplates } from '../../config/browTemplates'
+import { useAppShare, useHomeTimelineShare } from '../../modules/share'
 import { initUser } from '../../modules/user'
 import indexImg from '../../assets/index-img.png'
 import './index.scss'
 
 export default function HomePage() {
+  useAppShare()
+  useHomeTimelineShare()
+
   const [initializingTarget, setInitializingTarget] = useState<'camera' | 'profile' | null>(null)
 
   const goCamera = async () => {
@@ -72,7 +76,7 @@ export default function HomePage() {
       <View className='home-page__hero glass-card'>
         <View className='home-page__hero-copy'>
           <Text className='home-page__title'>找到适合你的眉形</Text>
-          <Text className='home-page__subtitle'>实时相机 + 人脸定标 + 眉形辅助线，跟着虚线把眉头、眉峰、眉尾画准。</Text>
+          <Text className='home-page__subtitle'>实时相机 + 人脸定标 + 眉形辅助线，对齐辅助线把眉头、眉峰、眉尾画准。</Text>
         </View>
 
         <View className='home-page__preview'>

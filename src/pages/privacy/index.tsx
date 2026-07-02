@@ -1,7 +1,10 @@
 import { View, Text } from '@tarojs/components'
+import { useAppShare } from '../../modules/share'
 import './index.scss'
 
 export default function PrivacyPage() {
+  useAppShare()
+
   return (
     <View className='privacy-page page-shell'>
       <View className='privacy-page__card glass-card'>
